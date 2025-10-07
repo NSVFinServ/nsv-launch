@@ -23,6 +23,7 @@ import {
   Calculator
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { loanAPI } from '../../lib/api';  // Import the new API service
 
 // Define TypeScript interfaces
 interface User {
