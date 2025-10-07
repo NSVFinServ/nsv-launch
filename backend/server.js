@@ -6,12 +6,16 @@ const jwt = require('jsonwebtoken');
 const mysql = require('mysql2');
 const multer = require('multer');
 const path = require('path');
+const otpGenerator = require('otp-generator');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [process.env.FRONTEND_BASE_URL, 'http://localhost:5173'].filter(Boolean),
+  credentials: true
+}));
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
@@ -47,20 +51,42 @@ const upload = multer({
   }
 });
 
-// MySQL Connection
-const db = mysql.createConnection({
+// MySQL Connection Pool with proper configuration
+const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   port: process.env.DB_PORT || 3306,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  idleTimeout: 300000,
+  supportBigNumbers: true,
+  bigNumberStrings: true
 });
 
-db.connect((err) => {
+// Create a promise-based wrapper for the pool
+const promisePool = pool.promise();
+
+// Test the connection pool
+pool.getConnection((err, connection) => {
   if (err) {
     console.error('Database connection failed:', err);
+    console.error('Make sure your database credentials are correct in .env file');
   } else {
     console.log('Connected to MySQL database');
+    connection.release();
+  }
+});
+
+// Handle pool errors gracefully
+pool.on('error', function(err) {
+  console.error('Database pool error:', err);
+  if(err.code === 'PROTOCOL_CONNECTION_LOST') {
+    console.log('Attempting to reconnect to database...');
+  } else {
+    throw err;
   }
 });
 
@@ -70,7 +96,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // Email configuration - Use environment variables for real email system
 const transporter = require('nodemailer').createTransport({
   host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
+  port: Number(process.env.EMAIL_PORT),
   secure: process.env.EMAIL_SECURE === 'true',
   auth: {
     user: process.env.EMAIL_USER,
@@ -92,7 +118,7 @@ const sendEmail = async (to, subject, html) => {
     console.log('Attempting to send email to:', to);
     
     const mailOptions = {
-      from: 'jayarudrachalikwar@gmail.com',
+      from: process.env.EMAIL_USER,
       to: to,
       subject: subject,
       html: html
@@ -148,13 +174,13 @@ const authenticateToken = (req, res, next) => {
 app.get('/api/test-db', async (req, res) => {
   try {
     // Test basic connection
-    const [result] = await db.promise().query('SELECT 1 as test');
+    const [result] = await promisePool.query('SELECT 1 as test');
     
     // Check if database exists
-    const [databases] = await db.promise().query('SHOW DATABASES LIKE "nsv"');
+    const [databases] = await promisePool.query('SHOW DATABASES LIKE "nsv"');
     
     // Check if tables exist
-    const [tables] = await db.promise().query('SHOW TABLES');
+    const [tables] = await promisePool.query('SHOW TABLES');
     
     res.json({
       message: 'Database connection successful',
@@ -208,7 +234,7 @@ app.post('/api/signup', async (req, res) => {
     const { name, email, password, phone } = req.body;
     
     // Check if user already exists
-    const [existingUser] = await db.promise().query(
+    const [existingUser] = await promisePool.query(
       'SELECT id FROM users WHERE email = ?',
       [email]
     );
@@ -221,7 +247,7 @@ app.post('/api/signup', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     
     // Insert user
-    const [result] = await db.promise().query(
+    const [result] = await promisePool.query(
       'INSERT INTO users (name, email, password_hash, phone) VALUES (?, ?, ?, ?)',
       [name, email, hashedPassword, phone]
     );
@@ -255,7 +281,7 @@ app.post('/api/login', async (req, res) => {
     }
     
     // Find user
-    const [users] = await db.promise().query(
+    const [users] = await promisePool.query(
       'SELECT * FROM users WHERE email = ?',
       [email]
     );
@@ -292,7 +318,7 @@ app.post('/api/referral', async (req, res) => {
     const { referrer_id, referred_name, referred_email, referred_phone } = req.body;
     
     // Insert referral
-    const [result] = await db.promise().query(
+    const [result] = await promisePool.query(
       'INSERT INTO referrals (referrer_id, referred_name, referred_email, referred_phone) VALUES (?, ?, ?, ?)',
       [referrer_id, referred_name, referred_email, referred_phone]
     );
@@ -313,7 +339,7 @@ app.post('/api/loan-application', async (req, res) => {
     const { user_id, service_id, amount, ask_expert_id } = req.body;
     
     // Insert loan application
-    const [result] = await db.promise().query(
+    const [result] = await promisePool.query(
       'INSERT INTO loan_applications (user_id, service_id, amount, ask_expert_id) VALUES (?, ?, ?, ?)',
       [user_id, service_id, amount, ask_expert_id || null]
     );
@@ -331,7 +357,7 @@ app.post('/api/loan-application', async (req, res) => {
 // 5. Get Services
 app.get('/api/services', async (req, res) => {
   try {
-    const [services] = await db.promise().query('SELECT * FROM services');
+    const [services] = await promisePool.query('SELECT * FROM services');
     res.json(services);
   } catch (error) {
     console.error('Get services error:', error);
@@ -342,7 +368,7 @@ app.get('/api/services', async (req, res) => {
 // 6. Get All Users (for admin view)
 app.get('/api/users', async (req, res) => {
   try {
-    const [users] = await db.promise().query('SELECT id, name, email, phone, created_at FROM users');
+    const [users] = await promisePool.query('SELECT id, name, email, phone, created_at FROM users');
     res.json(users);
   } catch (error) {
     console.error('Get users error:', error);
@@ -353,7 +379,7 @@ app.get('/api/users', async (req, res) => {
 // 7. Get All Referrals (for admin view)
 app.get('/api/referrals', async (req, res) => {
   try {
-    const [referrals] = await db.promise().query(`
+    const [referrals] = await promisePool.query(`
       SELECT 
         r.*, 
         u.name as referrer_name,
@@ -373,7 +399,7 @@ app.get('/api/referrals', async (req, res) => {
 // 8. Get All Loan Applications (for admin view)
 app.get('/api/loan-applications', async (req, res) => {
   try {
-    const [applications] = await db.promise().query(`
+    const [applications] = await promisePool.query(`
       SELECT la.*, u.name as user_name, u.email as user_email, s.name as service_name
       FROM loan_applications la
       JOIN users u ON la.user_id = u.id
@@ -391,7 +417,7 @@ app.post('/api/ask-expert', async (req, res) => {
   try {
     const { user_id, question } = req.body;
     
-    const [result] = await db.promise().query(
+    const [result] = await promisePool.query(
       'INSERT INTO ask_expert (user_id, question) VALUES (?, ?)',
       [user_id, question]
     );
@@ -415,7 +441,7 @@ app.post('/api/track-click', async (req, res) => {
     const userId = (user_id === 'admin' || user_id === null) ? null : user_id;
     
     // Insert click tracking
-    const [result] = await db.promise().query(
+    const [result] = await promisePool.query(
       'INSERT INTO website_analytics (page, action, user_id, timestamp) VALUES (?, ?, ?, NOW())',
       [page, action, userId, new Date()]
     );
@@ -430,7 +456,7 @@ app.post('/api/track-click', async (req, res) => {
 // 11. Get Website Analytics
 app.get('/api/analytics', async (req, res) => {
   try {
-    const [analytics] = await db.promise().query(`
+    const [analytics] = await promisePool.query(`
       SELECT 
         page,
         action,
@@ -451,20 +477,20 @@ app.get('/api/analytics', async (req, res) => {
 // 12. Get Dashboard Statistics
 app.get('/api/dashboard-stats', async (req, res) => {
   try {
-    const [userStats] = await db.promise().query('SELECT COUNT(*) as total_users FROM users');
-    const [referralStats] = await db.promise().query('SELECT COUNT(*) as total_referrals FROM referrals');
-    const [applicationStats] = await db.promise().query('SELECT COUNT(*) as total_applications FROM loan_applications');
-    const [recentUsers] = await db.promise().query(`
+    const [userStats] = await promisePool.query('SELECT COUNT(*) as total_users FROM users');
+    const [referralStats] = await promisePool.query('SELECT COUNT(*) as total_referrals FROM referrals');
+    const [applicationStats] = await promisePool.query('SELECT COUNT(*) as total_applications FROM loan_applications');
+    const [recentUsers] = await promisePool.query(`
       SELECT COUNT(*) as recent_users 
       FROM users 
       WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
     `);
-    const [recentApplications] = await db.promise().query(`
+    const [recentApplications] = await promisePool.query(`
       SELECT COUNT(*) as recent_applications 
       FROM loan_applications 
       WHERE submitted_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
     `);
-    const [totalClicks] = await db.promise().query('SELECT COUNT(*) as total_clicks FROM website_analytics');
+    const [totalClicks] = await promisePool.query('SELECT COUNT(*) as total_clicks FROM website_analytics');
     
     res.json({
       totalUsers: userStats[0].total_users,
@@ -485,7 +511,7 @@ app.post('/api/check-email', async (req, res) => {
   try {
     const { email } = req.body;
 
-    const [users] = await db.promise().query('SELECT id FROM users WHERE email = ?', [email]);
+    const [users] = await promisePool.query('SELECT id FROM users WHERE email = ?', [email]);
     
     res.json({ 
       exists: users.length > 0,
@@ -502,7 +528,7 @@ app.post('/api/check-phone', async (req, res) => {
   try {
     const { phone } = req.body;
 
-    const [users] = await db.promise().query('SELECT id FROM users WHERE phone = ?', [phone]);
+    const [users] = await promisePool.query('SELECT id FROM users WHERE phone = ?', [phone]);
     
     res.json({ 
       exists: users.length > 0,
@@ -520,7 +546,7 @@ app.post('/api/forgot-password', async (req, res) => {
     const { email, method = 'email' } = req.body;
     
     // Get user info (email already verified to exist by frontend)
-    const [users] = await db.promise().query(
+    const [users] = await promisePool.query(
       'SELECT id, name, email, phone FROM users WHERE email = ?',
       [email]
     );
@@ -532,13 +558,13 @@ app.post('/api/forgot-password', async (req, res) => {
       const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       
       // Store reset token in database
-      await db.promise().query(
+      await promisePool.query(
         'INSERT INTO password_resets (email, token, expires_at) VALUES (?, ?, ?)',
         [email, resetToken, new Date(Date.now() + 15 * 60 * 1000)] // 15 minutes
       );
       
       // Send email
-      const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
+      const resetLink = `${process.env.FRONTEND_BASE_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
       const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Password Reset Request</h2>
@@ -577,7 +603,7 @@ app.post('/api/forgot-password-otp', async (req, res) => {
     const { phone } = req.body;
     
     // Get user info (phone already verified to exist by frontend)
-    const [users] = await db.promise().query(
+    const [users] = await promisePool.query(
       'SELECT id, name, email, phone FROM users WHERE phone = ?',
       [phone]
     );
@@ -649,7 +675,7 @@ app.post('/api/verify-otp', async (req, res) => {
     const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     
     // Store reset token in database
-    await db.promise().query(
+    await promisePool.query(
       'INSERT INTO password_resets (email, token, expires_at) VALUES (?, ?, ?)',
       [storedData.email, resetToken, new Date(Date.now() + 15 * 60 * 1000)]
     );
@@ -673,7 +699,7 @@ app.post('/api/reset-password', async (req, res) => {
     const { token, newPassword } = req.body;
     
     // Verify the token exists and is not expired
-    const [resetRecords] = await db.promise().query(
+    const [resetRecords] = await promisePool.query(
       'SELECT * FROM password_resets WHERE token = ? AND used = FALSE AND expires_at > NOW()',
       [token]
     );
@@ -688,13 +714,13 @@ app.post('/api/reset-password', async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update user's password
-    await db.promise().query(
+    await promisePool.query(
       'UPDATE users SET password_hash = ? WHERE email = ?',
       [hashedPassword, resetRecord.email]
     );
     
     // Mark token as used
-    await db.promise().query(
+    await promisePool.query(
       'UPDATE password_resets SET used = TRUE WHERE token = ?',
       [token]
     );
@@ -714,7 +740,7 @@ app.post('/api/reset-password', async (req, res) => {
 app.get('/api/reviews', (req, res) => {
   const query = 'SELECT * FROM customer_reviews WHERE status = "verified" ORDER BY created_at DESC';
   
-  db.query(query, (err, results) => {
+  pool.query(query, (err, results) => {
     if (err) {
       console.error('Error fetching reviews:', err);
       return res.status(500).json({ error: 'Failed to fetch reviews' });
@@ -733,7 +759,7 @@ app.post('/api/reviews', (req, res) => {
   
   const query = 'INSERT INTO customer_reviews (user_id, name, email, phone, rating, review_text, status) VALUES (?, ?, ?, ?, ?, ?, "pending")';
   
-  db.query(query, [userId || null, name, email, phone, rating, reviewText], (err, result) => {
+  pool.query(query, [userId || null, name, email, phone, rating, reviewText], (err, result) => {
     if (err) {
       console.error('Error submitting review:', err);
       return res.status(500).json({ error: 'Failed to submit review' });
@@ -746,7 +772,7 @@ app.post('/api/reviews', (req, res) => {
 app.get('/api/admin/reviews', authenticateToken, (req, res) => {
   const query = 'SELECT * FROM customer_reviews ORDER BY created_at DESC';
   
-  db.query(query, (err, results) => {
+  pool.query(query, (err, results) => {
     if (err) {
       console.error('Error fetching all reviews:', err);
       return res.status(500).json({ error: 'Failed to fetch reviews' });
@@ -766,7 +792,7 @@ app.put('/api/admin/reviews/:id', authenticateToken, (req, res) => {
   
   const query = 'UPDATE customer_reviews SET status = ?, updated_at = NOW() WHERE id = ?';
   
-  db.query(query, [status, id], (err, result) => {
+  pool.query(query, [status, id], (err, result) => {
     if (err) {
       console.error('Error updating review status:', err);
       return res.status(500).json({ error: 'Failed to update review status' });
@@ -786,7 +812,7 @@ app.delete('/api/admin/reviews/:id', authenticateToken, (req, res) => {
   
   const query = 'DELETE FROM customer_reviews WHERE id = ?';
   
-  db.query(query, [id], (err, result) => {
+  pool.query(query, [id], (err, result) => {
     if (err) {
       console.error('Error deleting review:', err);
       return res.status(500).json({ error: 'Failed to delete review' });
@@ -813,7 +839,7 @@ app.post('/api/eligibility-submission', async (req, res) => {
       return res.status(400).json({ error: 'Name, phone, email, and salary are required' });
     }
     
-    const [result] = await db.promise().query(
+    const [result] = await promisePool.query(
       `INSERT INTO eligibility_submissions 
        (name, phone, email, monthly_salary, existing_emi, age, employment_type, 
         interest_rate, desired_tenure_years, eligible_loan_amount, affordable_emi) 
@@ -835,7 +861,7 @@ app.post('/api/eligibility-submission', async (req, res) => {
 // Admin: Get all eligibility submissions
 app.get('/api/admin/eligibility', authenticateToken, async (req, res) => {
   try {
-    const [submissions] = await db.promise().query(
+    const [submissions] = await promisePool.query(
       'SELECT * FROM eligibility_submissions ORDER BY created_at DESC'
     );
     res.json(submissions);
@@ -855,7 +881,7 @@ app.put('/api/admin/eligibility/:id', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid status' });
     }
     
-    const [result] = await db.promise().query(
+    const [result] = await promisePool.query(
       'UPDATE eligibility_submissions SET status = ? WHERE id = ?',
       [status, id]
     );
@@ -881,7 +907,7 @@ app.put('/api/admin/loan-applications/:id', authenticateToken, async (req, res) 
       return res.status(400).json({ error: 'Invalid status' });
     }
     
-    const [result] = await db.promise().query(
+    const [result] = await promisePool.query(
       'UPDATE loan_applications SET status = ? WHERE id = ?',
       [status, id]
     );
@@ -902,7 +928,7 @@ app.put('/api/admin/loan-applications/:id', authenticateToken, async (req, res) 
 app.get('/api/testimonial-videos', (req, res) => {
   const query = 'SELECT * FROM testimonial_videos WHERE is_active = TRUE ORDER BY display_order ASC, created_at DESC';
   
-  db.query(query, (err, results) => {
+  pool.query(query, (err, results) => {
     if (err) {
       console.error('Error fetching testimonial videos:', err);
       return res.status(500).json({ error: 'Failed to fetch testimonial videos' });
@@ -915,7 +941,7 @@ app.get('/api/testimonial-videos', (req, res) => {
 app.get('/api/admin/testimonial-videos', authenticateToken, (req, res) => {
   const query = 'SELECT * FROM testimonial_videos ORDER BY display_order ASC, created_at DESC';
   
-  db.query(query, (err, results) => {
+  pool.query(query, (err, results) => {
     if (err) {
       console.error('Error fetching all testimonial videos:', err);
       return res.status(500).json({ error: 'Failed to fetch testimonial videos' });
@@ -936,7 +962,7 @@ app.post('/api/admin/testimonial-videos', authenticateToken, (req, res) => {
     (title, video_url, customer_name, customer_location, description, display_order, image_url) 
     VALUES (?, ?, ?, ?, ?, ?, ?)`;
   
-  db.query(query, [title, video_url, customer_name, customer_location, description, display_order || 0, image_url || null], (err, result) => {
+  pool.query(query, [title, video_url, customer_name, customer_location, description, display_order || 0, image_url || null], (err, result) => {
     if (err) {
       console.error('Error adding testimonial video:', err);
       return res.status(500).json({ error: 'Failed to add testimonial video' });
@@ -955,7 +981,7 @@ app.put('/api/admin/testimonial-videos/:id', authenticateToken, (req, res) => {
     description = ?, display_order = ?, is_active = ?, image_url = ?, updated_at = NOW() 
     WHERE id = ?`;
   
-  db.query(query, [title, video_url, customer_name, customer_location, description, display_order, is_active, image_url || null, id], (err, result) => {
+  pool.query(query, [title, video_url, customer_name, customer_location, description, display_order, is_active, image_url || null, id], (err, result) => {
     if (err) {
       console.error('Error updating testimonial video:', err);
       return res.status(500).json({ error: 'Failed to update testimonial video' });
@@ -975,7 +1001,7 @@ app.delete('/api/admin/testimonial-videos/:id', authenticateToken, (req, res) =>
   
   const query = 'DELETE FROM testimonial_videos WHERE id = ?';
   
-  db.query(query, [id], (err, result) => {
+  pool.query(query, [id], (err, result) => {
     if (err) {
       console.error('Error deleting testimonial video:', err);
       return res.status(500).json({ error: 'Failed to delete testimonial video' });
@@ -995,7 +1021,7 @@ app.delete('/api/admin/testimonial-videos/:id', authenticateToken, (req, res) =>
 app.get('/api/events', (req, res) => {
   const query = 'SELECT * FROM events WHERE is_active = TRUE ORDER BY display_order ASC, created_at DESC';
   
-  db.query(query, (err, results) => {
+  pool.query(query, (err, results) => {
     if (err) {
       console.error('Error fetching events:', err);
       return res.status(500).json({ error: 'Failed to fetch events' });
@@ -1008,7 +1034,7 @@ app.get('/api/events', (req, res) => {
 app.get('/api/admin/events', authenticateToken, (req, res) => {
   const query = 'SELECT * FROM events ORDER BY display_order ASC, created_at DESC';
   
-  db.query(query, (err, results) => {
+  pool.query(query, (err, results) => {
     if (err) {
       console.error('Error fetching all events:', err);
       return res.status(500).json({ error: 'Failed to fetch events' });
@@ -1029,7 +1055,7 @@ app.post('/api/admin/events', authenticateToken, (req, res) => {
     (title, description, image_url, event_date, display_order) 
     VALUES (?, ?, ?, ?, ?)`;
   
-  db.query(query, [title, description, image_url, event_date, display_order || 0], (err, result) => {
+  pool.query(query, [title, description, image_url, event_date, display_order || 0], (err, result) => {
     if (err) {
       console.error('Error adding event:', err);
       return res.status(500).json({ error: 'Failed to add event' });
@@ -1048,7 +1074,7 @@ app.put('/api/admin/events/:id', authenticateToken, (req, res) => {
     display_order = ?, is_active = ?, updated_at = NOW() 
     WHERE id = ?`;
   
-  db.query(query, [title, description, image_url, event_date, display_order, is_active, id], (err, result) => {
+  pool.query(query, [title, description, image_url, event_date, display_order, is_active, id], (err, result) => {
     if (err) {
       console.error('Error updating event:', err);
       return res.status(500).json({ error: 'Failed to update event' });
@@ -1084,7 +1110,7 @@ app.put('/api/admin/events/:id/upload', authenticateToken, upload.single('image'
       display_order = ?, is_active = ?, updated_at = NOW() 
       WHERE id = ?`;
     
-    db.query(query, [title, description, imageUrl, event_date, display_order, is_active, id], (err, result) => {
+    pool.query(query, [title, description, imageUrl, event_date, display_order, is_active, id], (err, result) => {
       if (err) {
         console.error('Error updating event:', err);
         return res.status(500).json({ error: 'Failed to update event' });
@@ -1125,7 +1151,7 @@ app.post('/api/admin/events/upload', authenticateToken, upload.single('image'), 
       (title, description, image_url, event_date, display_order, is_active) 
       VALUES (?, ?, ?, ?, ?, ?)`;
     
-    db.query(query, [title, description, image_url, event_date, display_order || 0, is_active === 'true' || is_active === true], (err, result) => {
+    pool.query(query, [title, description, image_url, event_date, display_order || 0, is_active === 'true' || is_active === true], (err, result) => {
       if (err) {
         console.error('Error adding event:', err);
         return res.status(500).json({ error: 'Failed to add event' });
@@ -1148,7 +1174,7 @@ app.delete('/api/admin/events/:id', authenticateToken, (req, res) => {
   
   const query = 'DELETE FROM events WHERE id = ?';
   
-  db.query(query, [id], (err, result) => {
+  pool.query(query, [id], (err, result) => {
     if (err) {
       console.error('Error deleting event:', err);
       return res.status(500).json({ error: 'Failed to delete event' });
@@ -1168,7 +1194,7 @@ app.delete('/api/admin/events/:id', authenticateToken, (req, res) => {
 app.get('/api/regulatory-updates', (req, res) => {
   const query = 'SELECT * FROM regulatory_updates WHERE is_active = TRUE ORDER BY category, display_order ASC, created_at DESC';
   
-  db.query(query, (err, results) => {
+  pool.query(query, (err, results) => {
     if (err) {
       console.error('Error fetching regulatory updates:', err);
       return res.status(500).json({ error: 'Failed to fetch regulatory updates' });
@@ -1181,7 +1207,7 @@ app.get('/api/regulatory-updates', (req, res) => {
 app.get('/api/admin/regulatory-updates', authenticateToken, (req, res) => {
   const query = 'SELECT * FROM regulatory_updates ORDER BY category, display_order ASC, created_at DESC';
   
-  db.query(query, (err, results) => {
+  pool.query(query, (err, results) => {
     if (err) {
       console.error('Error fetching all regulatory updates:', err);
       return res.status(500).json({ error: 'Failed to fetch regulatory updates' });
@@ -1206,7 +1232,7 @@ app.post('/api/admin/regulatory-updates', authenticateToken, (req, res) => {
     (title, content, category, display_order) 
     VALUES (?, ?, ?, ?)`;
   
-  db.query(query, [title, content, category, display_order || 0], (err, result) => {
+  pool.query(query, [title, content, category, display_order || 0], (err, result) => {
     if (err) {
       console.error('Error adding regulatory update:', err);
       return res.status(500).json({ error: 'Failed to add regulatory update' });
@@ -1232,7 +1258,7 @@ app.put('/api/admin/regulatory-updates/:id', authenticateToken, (req, res) => {
     title = ?, content = ?, category = ?, display_order = ?, is_active = ?, updated_at = NOW() 
     WHERE id = ?`;
   
-  db.query(query, [title, content, category, display_order, is_active, id], (err, result) => {
+  pool.query(query, [title, content, category, display_order, is_active, id], (err, result) => {
     if (err) {
       console.error('Error updating regulatory update:', err);
       return res.status(500).json({ error: 'Failed to update regulatory update' });
@@ -1252,7 +1278,7 @@ app.delete('/api/admin/regulatory-updates/:id', authenticateToken, (req, res) =>
   
   const query = 'DELETE FROM regulatory_updates WHERE id = ?';
   
-  db.query(query, [id], (err, result) => {
+  pool.query(query, [id], (err, result) => {
     if (err) {
       console.error('Error deleting regulatory update:', err);
       return res.status(500).json({ error: 'Failed to delete regulatory update' });
@@ -1288,7 +1314,7 @@ app.post('/api/admin/events/upload', authenticateToken, upload.single('image'), 
       (title, description, image_url, event_date, display_order, is_active) 
       VALUES (?, ?, ?, ?, ?, ?)`;
     
-    db.query(query, [title, description, image_url, event_date, display_order || 0, is_active === 'true' || is_active === true], (err, result) => {
+    pool.query(query, [title, description, image_url, event_date, display_order || 0, is_active === 'true' || is_active === true], (err, result) => {
       if (err) {
         console.error('Error adding event:', err);
         return res.status(500).json({ error: 'Failed to add event' });
@@ -1325,7 +1351,7 @@ app.post('/api/admin/testimonial-videos/upload', authenticateToken, upload.singl
       (title, video_url, customer_name, customer_location, description, display_order, is_active, image_url) 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
     
-    db.query(query, [title, video_url, customer_name, customer_location, description, display_order || 0, is_active === 'true' || is_active === true, image_url], (err, result) => {
+    pool.query(query, [title, video_url, customer_name, customer_location, description, display_order || 0, is_active === 'true' || is_active === true, image_url], (err, result) => {
       if (err) {
         console.error('Error adding testimonial video:', err);
         return res.status(500).json({ error: 'Failed to add testimonial video' });
@@ -1364,7 +1390,7 @@ app.put('/api/admin/testimonial-videos/:id/upload', authenticateToken, upload.si
       description = ?, display_order = ?, is_active = ?, image_url = ?, updated_at = NOW() 
       WHERE id = ?`;
     
-    db.query(query, [title, video_url, customer_name, customer_location, description, display_order, is_active, imageUrl, id], (err, result) => {
+    pool.query(query, [title, video_url, customer_name, customer_location, description, display_order, is_active, imageUrl, id], (err, result) => {
       if (err) {
         console.error('Error updating testimonial video:', err);
         return res.status(500).json({ error: 'Failed to update testimonial video' });
@@ -1396,7 +1422,7 @@ app.put('/api/admin/referrals/:id', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid status. Must be pending, accepted, or rejected.' });
     }
     
-    const [result] = await db.promise().query(
+    const [result] = await promisePool.query(
       'UPDATE referrals SET status = ? WHERE id = ?',
       [status, id]
     );
@@ -1417,7 +1443,7 @@ app.delete('/api/admin/referrals/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    const [result] = await db.promise().query(
+    const [result] = await promisePool.query(
       'DELETE FROM referrals WHERE id = ?',
       [id]
     );
@@ -1438,7 +1464,7 @@ app.delete('/api/admin/loan-applications/:id', authenticateToken, async (req, re
   try {
     const { id } = req.params;
     
-    const [result] = await db.promise().query(
+    const [result] = await promisePool.query(
       'DELETE FROM loan_applications WHERE id = ?',
       [id]
     );
@@ -1459,7 +1485,7 @@ app.delete('/api/admin/eligibility/:id', authenticateToken, async (req, res) => 
   try {
     const { id } = req.params;
     
-    const [result] = await db.promise().query(
+    const [result] = await promisePool.query(
       'DELETE FROM eligibility_submissions WHERE id = ?',
       [id]
     );
