@@ -6,12 +6,16 @@ const jwt = require('jsonwebtoken');
 const mysql = require('mysql2');
 const multer = require('multer');
 const path = require('path');
+const otpGenerator = require('otp-generator');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [process.env.FRONTEND_BASE_URL, 'http://localhost:5173'].filter(Boolean),
+  credentials: true
+}));
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
@@ -70,7 +74,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // Email configuration - Use environment variables for real email system
 const transporter = require('nodemailer').createTransport({
   host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
+  port: Number(process.env.EMAIL_PORT),
   secure: process.env.EMAIL_SECURE === 'true',
   auth: {
     user: process.env.EMAIL_USER,
@@ -92,7 +96,7 @@ const sendEmail = async (to, subject, html) => {
     console.log('Attempting to send email to:', to);
     
     const mailOptions = {
-      from: 'jayarudrachalikwar@gmail.com',
+      from: process.env.EMAIL_USER,
       to: to,
       subject: subject,
       html: html
@@ -538,7 +542,7 @@ app.post('/api/forgot-password', async (req, res) => {
       );
       
       // Send email
-      const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
+      const resetLink = `${process.env.FRONTEND_BASE_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
       const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Password Reset Request</h2>
