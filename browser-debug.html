@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Referral Update Debug</title>
+</head>
+<body>
+    <h1>Referral Update Debug Tool</h1>
+    <p>Open browser developer tools (F12) and check the Console tab for detailed error information.</p>
+    <button onclick="testReferralUpdate()">Test Referral Update</button>
+    
+    <script>
+        async function testReferralUpdate() {
+            console.log('=== Browser Referral Update Test ===');
+            
+            // Get token from localStorage (this is how the admin dashboard does it)
+            const token = localStorage.getItem('token');
+            console.log('Token from localStorage:', token ? 'Present' : 'Missing');
+            
+            if (!token) {
+                console.error('❌ No authentication token found in localStorage');
+                console.log('Please log in to the admin panel first, then run this test');
+                return;
+            }
+            
+            // Try to get a referral ID from the API
+            try {
+                console.log('Fetching referrals...');
+                const referralsResponse = await fetch('http://localhost:5000/api/referrals');
+                
+                if (!referralsResponse.ok) {
+                    console.error('❌ Failed to fetch referrals:', referralsResponse.status, referralsResponse.statusText);
+                    return;
+                }
+                
+                const referrals = await referralsResponse.json();
+                console.log('Found referrals:', referrals.length);
+                
+                if (referrals.length === 0) {
+                    console.log('No referrals found in the database');
+                    return;
+                }
+                
+                // Use the first referral for testing
+                const referralId = referrals[0].id;
+                console.log('Testing with referral ID:', referralId);
+                
+                // Try to update the referral status
+                console.log('Updating referral status to "accepted"...');
+                const updateResponse = await fetch(`http://localhost:5000/api/admin/referrals/${referralId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ status: 'accepted' })
+                });
+                
+                console.log('Update response status:', updateResponse.status);
+                
+                // Try to parse the response
+                try {
+                    const result = await updateResponse.json();
+                    console.log('Update response body:', result);
+                } catch (parseError) {
+                    const text = await updateResponse.text();
+                    console.log('Update response text:', text);
+                }
+                
+                if (updateResponse.ok) {
+                    console.log('✅ SUCCESS: Referral status updated successfully');
+                } else {
+                    console.log('❌ ERROR: Referral status update failed');
+                }
+                
+            } catch (error) {
+                console.error('❌ Network error:', error.message);
+                console.log('This could be due to:');
+                console.log('- Server not running on port 5000');
+                console.log('- CORS policy blocking the request');
+                console.log('- Network connectivity issues');
+            }
+        }
+    </script>
+</body>
+</html>
