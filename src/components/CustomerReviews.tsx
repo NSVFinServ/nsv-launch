@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Star, Quote, ThumbsUp, Clock, Shield, Award, Send } from 'lucide-react';
+import { reviewsAPI } from '../lib/api';  // Import the new API service
 
 interface Review {
   id: number;
@@ -29,11 +30,7 @@ const CustomerReviews = () => {
   useEffect(() => {
     const fetchReviews = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/reviews');
-        if (!response.ok) {
-          throw new Error('Failed to fetch reviews');
-        }
-        const data = await response.json();
+        const data = await reviewsAPI.getAll();
         setReviews(data);
         setLoading(false);
       } catch (err) {
@@ -57,28 +54,17 @@ const CustomerReviews = () => {
     setIsSubmitting(true);
     
     try {
-      const response = await fetch('http://localhost:5000/api/reviews', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: reviewForm.name,
-          email: reviewForm.email,
-          phone: reviewForm.phone,
-          rating: reviewForm.rating,
-          reviewText: reviewForm.message,
-          userId: null // Can be set if user is logged in
-        })
+      const response = await reviewsAPI.submit({
+        name: reviewForm.name,
+        email: reviewForm.email,
+        phone: reviewForm.phone,
+        rating: reviewForm.rating,
+        reviewText: reviewForm.message
       });
 
-      if (response.ok) {
-        alert('Thank you for your review! It will be published after approval.');
-        setReviewForm({ name: '', email: '', phone: '', rating: 0, message: '' });
-        setShowReviewForm(false);
-      } else {
-        alert('Failed to submit review. Please try again.');
-      }
+      alert('Thank you for your review! It will be published after approval.');
+      setReviewForm({ name: '', email: '', phone: '', rating: 0, message: '' });
+      setShowReviewForm(false);
     } catch (error) {
       console.error('Error submitting review:', error);
       alert('Failed to submit review. Please try again.');

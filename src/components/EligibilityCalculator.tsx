@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Calculator, ArrowRight } from 'lucide-react';
+import { eligibilityAPI } from '../lib/api';  // Import the new API service
 
 interface EligibilityResult {
   affordableEMI: number;
@@ -131,27 +132,23 @@ const EligibilityCalculator = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/eligibility-submission', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...contactData,
-          ...inputs,
-          eligibleLoanAmount: result?.eligibleLoan,
-          affordableEmi: result?.affordableEMI,
-          monthlySalary: inputs.salary
-        })
+      const response = await eligibilityAPI.submit({
+        name: contactData.name,
+        phone: contactData.phone,
+        email: contactData.email,
+        monthlySalary: parseFloat(inputs.salary),
+        existingEmi: parseFloat(inputs.existingEmi) || 0,
+        age: parseInt(inputs.age) || 0,
+        employment: inputs.employment,
+        rate: parseFloat(inputs.rate),
+        desiredYears: parseInt(inputs.desiredYears),
+        eligibleLoanAmount: result?.eligibleLoan,
+        affordableEmi: result?.affordableEMI
       });
 
-      if (response.ok) {
-        alert('Your eligibility submission has been received! Our team will contact you soon.');
-        setContactData({ name: '', phone: '', email: '' });
-        setShowContactForm(false);
-      } else {
-        alert('Failed to submit. Please try again.');
-      }
+      alert('Your eligibility submission has been received! Our team will contact you soon.');
+      setContactData({ name: '', phone: '', email: '' });
+      setShowContactForm(false);
     } catch (error) {
       console.error('Error submitting eligibility:', error);
       alert('Failed to submit. Please try again.');

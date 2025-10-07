@@ -68,10 +68,31 @@ export const servicesAPI = {
 
 // Loan Application APIs
 export const loanAPI = {
+  getAll: () =>
+    apiRequest<any[]>('/loan-applications', {
+      method: 'GET',
+    }),
+    
+  get: (id: number) =>
+    apiRequest<any>(`/admin/loan-applications/${id}`, {
+      method: 'GET',
+    }),
+  
   submit: (data: { user_id: string; service_id: number; amount: number; ask_expert_id?: number }) =>
     apiRequest<{ message: string; application_id: number }>('/loan-application', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+  
+  updateStatus: (id: number, status: 'pending' | 'approved' | 'rejected') =>
+    apiRequest<{ message: string }>(`/admin/loan-applications/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+  
+  delete: (id: number) =>
+    apiRequest<{ message: string }>(`/admin/loan-applications/${id}`, {
+      method: 'DELETE',
     }),
 };
 
@@ -119,6 +140,30 @@ export const reviewsAPI = {
     }),
 };
 
+// Events APIs
+export const eventsAPI = {
+  getAll: () =>
+    apiRequest<any[]>('/events', {
+      method: 'GET',
+    }),
+};
+
+// Testimonial Videos APIs
+export const videosAPI = {
+  getAll: () =>
+    apiRequest<any[]>('/testimonial-videos', {
+      method: 'GET',
+    }),
+};
+
+// Regulatory Updates APIs
+export const regulatoryAPI = {
+  getAll: () =>
+    apiRequest<any[]>('/regulatory-updates', {
+      method: 'GET',
+    }),
+};
+
 // Ask Expert APIs
 export const expertAPI = {
   submit: (data: { user_id?: string; question: string }) =>
@@ -137,6 +182,107 @@ export const analyticsAPI = {
     }),
 };
 
+// Admin APIs
+export const adminAPI = {
+  // Dashboard stats
+  getDashboardStats: () =>
+    apiRequest<any>('/dashboard-stats', {
+      method: 'GET',
+    }),
+  
+  // Users
+  getUsers: () =>
+    apiRequest<any[]>('/users', {
+      method: 'GET',
+    }),
+  
+  // Referrals
+  getReferrals: () =>
+    apiRequest<any[]>('/referrals', {
+      method: 'GET',
+    }),
+  
+  updateReferralStatus: (id: number, status: 'pending' | 'accepted' | 'rejected') =>
+    apiRequest<{ message: string }>(`/admin/referrals/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+  
+  deleteReferral: (id: number) =>
+    apiRequest<{ message: string }>(`/admin/referrals/${id}`, {
+      method: 'DELETE',
+    }),
+  
+  // Loan Applications
+  getLoanApplications: () =>
+    apiRequest<any[]>('/loan-applications', {
+      method: 'GET',
+    }),
+  
+  updateLoanApplicationStatus: (id: number, status: 'pending' | 'approved' | 'rejected') =>
+    apiRequest<{ message: string }>(`/admin/loan-applications/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+  
+  deleteLoanApplication: (id: number) =>
+    apiRequest<{ message: string }>(`/admin/loan-applications/${id}`, {
+      method: 'DELETE',
+    }),
+  
+  // Reviews
+  getReviews: () =>
+    apiRequest<any[]>('/admin/reviews', {
+      method: 'GET',
+    }),
+  
+  updateReviewStatus: (id: number, status: 'pending' | 'verified' | 'rejected') =>
+    apiRequest<{ message: string }>(`/admin/reviews/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+  
+  deleteReview: (id: number) =>
+    apiRequest<{ message: string }>(`/admin/reviews/${id}`, {
+      method: 'DELETE',
+    }),
+  
+  // Testimonial Videos
+  getTestimonialVideos: () =>
+    apiRequest<any[]>('/admin/testimonial-videos', {
+      method: 'GET',
+    }),
+  
+  // Events
+  getEvents: () =>
+    apiRequest<any[]>('/admin/events', {
+      method: 'GET',
+    }),
+  
+  // Regulatory Updates
+  getRegulatoryUpdates: () =>
+    apiRequest<any[]>('/admin/regulatory-updates', {
+      method: 'GET',
+    }),
+  
+  // Eligibility Submissions
+  getEligibilitySubmissions: () =>
+    apiRequest<any[]>('/admin/eligibility', {
+      method: 'GET',
+    }),
+  
+  updateEligibilityStatus: (id: number, status: 'pending' | 'reviewed' | 'contacted') =>
+    apiRequest<{ message: string }>(`/admin/eligibility/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+  
+  deleteEligibilitySubmission: (id: number) =>
+    apiRequest<{ message: string }>(`/admin/eligibility/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
 export default {
   authAPI,
   servicesAPI,
@@ -146,4 +292,5 @@ export default {
   reviewsAPI,
   expertAPI,
   analyticsAPI,
+  adminAPI,
 };

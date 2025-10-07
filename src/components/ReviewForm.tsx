@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Star, X, Send } from 'lucide-react';
+import { reviewsAPI } from '../lib/api';  // Import the new API service
 
 interface ReviewFormProps {
   isOpen: boolean;
@@ -27,28 +28,17 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ isOpen, onClose }) => {
     setIsSubmitting(true);
     
     try {
-      const response = await fetch('http://localhost:5000/api/reviews', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          rating: formData.rating,
-          reviewText: formData.message,
-          userId: null // Can be set if user is logged in
-        })
+      const response = await reviewsAPI.submit({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        rating: formData.rating,
+        reviewText: formData.message
       });
 
-      if (response.ok) {
-        alert('Thank you for your review! It will be published after approval.');
-        setFormData({ name: '', email: '', phone: '', rating: 0, message: '' });
-        onClose();
-      } else {
-        alert('Failed to submit review. Please try again.');
-      }
+      alert('Thank you for your review! It will be published after approval.');
+      setFormData({ name: '', email: '', phone: '', rating: 0, message: '' });
+      onClose();
     } catch (error) {
       console.error('Error submitting review:', error);
       alert('Failed to submit review. Please try again.');

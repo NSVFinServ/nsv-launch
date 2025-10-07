@@ -4,6 +4,7 @@ import { Link } from "react-router-dom"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
+import { loanAPI } from '../../lib/api'  // Use the new API service
 import logo from '../../components/logo.png'
 
 export default function LoanApplicationPage() {
@@ -34,36 +35,23 @@ export default function LoanApplicationPage() {
       }
 
       // For now, using service_id = 1 (Home Loan) - you can add a dropdown to select service
-      const response = await fetch('http://localhost:5000/api/loan-application', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          user_id: user.id,
-          service_id: 1, // Default to Home Loan
-          amount: parseFloat(formData.loanAmount),
-          ask_expert_id: null
-        }),
+      const response = await loanAPI.submit({
+        user_id: user.id,
+        service_id: 1, // Default to Home Loan
+        amount: parseFloat(formData.loanAmount)
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        alert("✅ Your application is successful! Soon our expert will be contacted with you.");
-        // Reset form
-        setFormData({
-          fullName: "",
-          email: "",
-          phone: "",
-          aadhaar: "",
-          pan: "",
-          loanAmount: "",
-          purpose: "",
-        });
-      } else {
-        alert(data.message || 'Loan application submission failed');
-      }
+      alert("✅ Your application is successful! Soon our expert will be contacted with you.");
+      // Reset form
+      setFormData({
+        fullName: "",
+        email: "",
+        phone: "",
+        aadhaar: "",
+        pan: "",
+        loanAmount: "",
+        purpose: "",
+      });
     } catch (error) {
       console.error('Loan application error:', error);
       alert('Loan application submission failed. Please try again.');

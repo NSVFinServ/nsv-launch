@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Play, MapPin, User } from 'lucide-react';
+import { videosAPI } from '../lib/api';  // Import the new API service
 
 interface TestimonialVideo {
   id: number;
@@ -21,11 +22,8 @@ const TestimonialVideos = () => {
 
   const fetchVideos = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/testimonial-videos');
-      if (response.ok) {
-        const data = await response.json();
-        setVideos(data);
-      }
+      const data = await videosAPI.getAll();
+      setVideos(data);
     } catch (error) {
       console.error('Error fetching testimonial videos:', error);
     } finally {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "./EventBanner.css";
+import { eventsAPI } from '../lib/api';  // Import the new API service
 
 interface Event {
   id: number;
@@ -21,11 +22,7 @@ const EventBanner: React.FC = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/events');
-        if (!response.ok) {
-          throw new Error('Failed to fetch events');
-        }
-        const data = await response.json();
+        const data = await eventsAPI.getAll();
         setEvents(data);
         setLoading(false);
       } catch (err) {

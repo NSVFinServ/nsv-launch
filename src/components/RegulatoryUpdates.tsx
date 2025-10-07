@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, BookOpen } from 'lucide-react';
+import { regulatoryAPI } from '../lib/api';  // Import the new API service
 
 interface RegulatoryUpdate {
   id: number;
@@ -22,8 +23,7 @@ export default function RegulatoryUpdates() {
 
   const fetchRegulatoryUpdates = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/regulatory-updates');
-      const data = await response.json();
+      const data = await regulatoryAPI.getAll();
       setUpdates(data);
     } catch (error) {
       console.error('Error fetching regulatory updates:', error);
