@@ -1,14 +1,13 @@
+// Analytics utility for tracking website clicks
 import { analyticsAPI } from './api';
 
-// Core function to track clicks
 export const trackClick = async (page: string, action: string) => {
   try {
-    // Get user ID from localStorage if available
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     await analyticsAPI.trackClick({
       page,
       action,
-      user_id: user.id || null,
+      user_id: user.id || null
     });
   } catch (error) {
     console.error('Analytics tracking error:', error);
