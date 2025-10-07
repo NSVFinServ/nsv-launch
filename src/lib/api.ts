@@ -1,5 +1,5 @@
 // API service for connecting frontend to backend
-const API_BASE_URL = 'https://nsvfinserv-api.onrender.com/api';
+const API_BASE_URL = ${process.env.NEXT_PUBLIC_API_URL}/api;
 
 // Helper function for making API requests
 async function apiRequest<T>(
