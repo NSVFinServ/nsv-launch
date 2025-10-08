@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Star, Quote, ThumbsUp, Clock, Shield, Award, Send } from 'lucide-react';
-import { reviewsAPI } from '../lib/api';  // Import the new API service
+import { reviewsAPI } from '../lib/api.ts';  // Import the new API service
 
 interface Review {
   id: number;
