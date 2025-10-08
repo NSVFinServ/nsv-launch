@@ -9,9 +9,13 @@ const path = require('path');
 const otpGenerator = require('otp-generator');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 
 // Middleware
+// ---- Security / proxy ----
+app.set('trust proxy', 1);
+
+// ---- CORS (allow-list) ----
 const rawOrigins = [
   process.env.FRONTEND_BASE_URL,
   ...(process.env.FRONTEND_BASE_URLS || '').split(',')
@@ -22,22 +26,22 @@ const allowedOrigins = new Set([
   'http://localhost:5173' // dev
 ]);
 
-app.use(cors({
+const corsOptions = {
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true); // non-browser clients
+    if (!origin) return cb(null, true);               // non-browser clients
     if (allowedOrigins.has(origin)) return cb(null, true);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization']
-}));
+};
 
-// (optional but nice) handle explicit preflight
-app.options('*', cors());
+app.use(cors(corsOptions));
+// IMPORTANT: use the same options for preflight so ACAO is present
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
-
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
