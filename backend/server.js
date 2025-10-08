@@ -9,48 +9,88 @@ const path = require('path');
 const otpGenerator = require('otp-generator');
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 5000;
 
-// Middleware
 // ---- Security / proxy ----
 app.set('trust proxy', 1);
 
-// ---- CORS (allow-list) ----
+// ---- CORS (allow-list with normalization + subdomain support) ----
 const rawOrigins = [
   process.env.FRONTEND_BASE_URL,
   ...(process.env.FRONTEND_BASE_URLS || '').split(',')
 ].map(s => (s || '').trim()).filter(Boolean);
 
+const normalize = (o) => {
+  try {
+    const u = new URL(o);
+    return `${u.protocol}//${u.host}`; // strip trailing slash, lowercase host
+  } catch {
+    return o.replace(/\/+$/,'').toLowerCase();
+  }
+};
+
+const baseAllowed = new Set(rawOrigins.map(normalize));
+
+const expandVariants = (origin) => {
+  try {
+    const u = new URL(origin);
+    const host = u.host.toLowerCase();
+    const isWWW = host.startsWith('www.');
+    const apexHost = isWWW ? host.slice(4) : host;
+    const wwwHost  = isWWW ? host : `www.${host}`;
+    return new Set([
+      `${u.protocol}//${host}`,
+      `${u.protocol}//${apexHost}`,
+      `${u.protocol}//${wwwHost}`,
+    ]);
+  } catch {
+    return new Set([origin]);
+  }
+};
+
 const allowedOrigins = new Set([
-  ...rawOrigins,
-  'http://localhost:5173' // dev
+  ...[...baseAllowed].flatMap(o => [...expandVariants(o)]),
+  'http://localhost:5173', // dev
 ]);
+
+const isAllowedByRule = (origin) => {
+  if (allowedOrigins.has(origin)) return true;
+  try {
+    const h = new URL(origin).host.toLowerCase();
+    // allow Vercel previews/production for your app
+    if (h.endsWith('.vercel.app')) return true;
+  } catch {}
+  return false;
+};
 
 const corsOptions = {
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true);               // non-browser clients
-    if (allowedOrigins.has(origin)) return cb(null, true);
+    const o = origin ? normalize(origin) : null;
+    if (!o) return cb(null, true); // non-browser clients
+    if (isAllowedByRule(o)) return cb(null, true);
+    console.warn('CORS blocked for origin:', origin, 'Allowed set:', [...allowedOrigins]);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization']
+  allowedHeaders: ['Content-Type','Authorization'],
 };
 
 app.use(cors(corsOptions));
-// IMPORTANT: use the same options for preflight so ACAO is present
 app.options('*', cors(corsOptions));
+
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
-// Multer configuration for file uploads
+
+// ---------- Health endpoint ----------
+app.get('/api/health', (req, res) => res.json({ ok: true, time: Date.now() }));
+
+// ---------- Multer (unchanged) ----------
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = 'uploads/';
-    // Create uploads directory if it doesn't exist
     const fs = require('fs');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
@@ -59,20 +99,16 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
-  },
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    // Allow images only
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'), false);
-    }
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are allowed'), false);
   }
 });
+
+// ---- Your DB pool + routes continue below (leave them as-is) ----
 
 // MySQL Connection Pool with proper configuration
 const pool = mysql.createPool({
