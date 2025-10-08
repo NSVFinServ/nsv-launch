@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calculator, ArrowRight } from 'lucide-react';
-import { eligibilityAPI } from '@/lib/api';  // Import the new API service
+import { eligibilityAPI } from 'src/lib/api';  // Import the new API service
 
 interface EligibilityResult {
   affordableEMI: number;
