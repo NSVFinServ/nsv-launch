@@ -4,7 +4,7 @@ import { Link } from "react-router-dom"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
-import { loanAPI } from '../../lib/api'  // Use the new API service
+import { loanAPI } from '../../lib/api.ts'  // Use the new API service
 import logo from '../../components/logo.png'
 
 export default function LoanApplicationPage() {
