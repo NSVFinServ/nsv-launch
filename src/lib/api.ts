@@ -1,3 +1,7 @@
+// src/lib/api.ts
+// Centralized API helpers/services. On Vercel (Production) set:
+// VITE_API_BASE_URL = https://nsvfinserv-api.onrender.com/api
+
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -17,7 +21,7 @@ export async function apiFetch<T = any>(
   if (ct.includes('application/json')) {
     return (await res.json()) as T;
   }
-  // @ts-ignore text fallback
+  // @ts-ignore allow text fallback
   return (await res.text()) as T;
 }
 
@@ -75,6 +79,7 @@ export const loanAPI = {
     }),
 };
 
+/** Lightweight analytics/track */
 export const trackAPI = {
   click: (payload: any) =>
     apiFetch('/track-click', {
@@ -84,7 +89,13 @@ export const trackAPI = {
     }),
 };
 
-/** Optional default export so `import api from '../lib/api'` also works */
+// Provide analyticsAPI alias for files importing from './api.ts' or '../lib/api'
+export const analyticsAPI = {
+  trackClick: (page: string, action: string) =>
+    trackAPI.click({ page, action }),
+};
+
+/** Optional default export */
 const api = {
   API_BASE_URL,
   apiFetch,
@@ -96,5 +107,6 @@ const api = {
   regulatoryAPI,
   loanAPI,
   trackAPI,
+  analyticsAPI,
 };
 export default api;
