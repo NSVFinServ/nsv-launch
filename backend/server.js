@@ -9,20 +9,48 @@ const path = require('path');
 const otpGenerator = require('otp-generator');
 
 const app = express();
-// TEMP: permissive CORS to verify connectivity quickly
+const PORT = process.env.PORT || 5000;
+
+// 1) Trust proxy (Render/HTTPS)
 app.set('trust proxy', 1);
 
-const permissive = {
-  origin: true,                 // reflect the request Origin
+// 2) TEMP permissive CORS to unblock (we’ll tighten later)
+const corsOptions = {
+  origin: true, // reflect the request Origin
   credentials: true,
-  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
-app.use(cors(permissive));
-// IMPORTANT: preflight must use the SAME options
-app.options('*', cors(permissive));
-const PORT = process.env.PORT || 10000;
+// 3) Minimal, safe middleware BEFORE anything complex
+app.use(express.json());
+app.use('/uploads', express.static('uploads'));
+
+// 4) Bulletproof health routes (cannot throw)
+app.get('/', (req, res) => res.type('text/plain').send('NSV Finserv API. See /api/health'));
+app.get('/api', (req, res) => res.json({ ok: true, msg: 'API base. Try /api/health' }));
+app.get('/api/health', (req, res) => {
+  try {
+    res.status(200).json({ ok: true, time: Date.now() });
+  } catch (e) {
+    // Even if something odd happens, do not throw HTML
+    res.status(200).type('application/json').send('{"ok":true}');
+  }
+});
+
+// 5) Global error handler (puts JSON instead of HTML)
+app.use((err, req, res, next) => {
+  console.error('UNHANDLED ERROR:', err && err.stack ? err.stack : err);
+  // Don’t leak internals—send a small message so the browser doesn’t try to parse HTML
+  if (res.headersSent) return;
+  res
+    .status(500)
+    .type('application/json')
+    .send(JSON.stringify({ error: 'internal_error', message: err?.message || 'Server error' }));
+});
+
 
 // ---- Security / proxy ----
 app.set('trust proxy', 1);
