@@ -20,6 +20,8 @@ const allowedOrigins = [
   'https://www.nsvfinserv.com',
   'https://nsvfinserv.com',
   'http://localhost:5173',
+  // Allow Vercel preview deployments
+  /^https:\/\/.*\.vercel\.app$/
 ];
 
 const isAllowedByRule = (origin) => {
@@ -35,7 +37,17 @@ const isAllowedByRule = (origin) => {
 const corsOptions = {
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
+    
+    // Check exact matches first
     if (allowedOrigins.includes(origin)) return cb(null, true);
+    
+    // Check regex patterns (for Vercel previews)
+    for (const pattern of allowedOrigins) {
+      if (pattern instanceof RegExp && pattern.test(origin)) {
+        return cb(null, true);
+      }
+    }
+    
     console.warn('CORS blocked for origin:', origin, 'Allowed:', allowedOrigins);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
@@ -481,8 +493,8 @@ app.post('/api/track-click', async (req, res) => {
     
     // Insert click tracking
     const [result] = await promisePool.query(
-      'INSERT INTO website_analytics (page, action, user_id, timestamp) VALUES (?, ?, ?, NOW())',
-      [page, action, userId, new Date()]
+      'INSERT INTO website_analytics (page, action, user_id) VALUES (?, ?, ?)',
+      [page, action, userId]
     );
     
     res.json({ message: 'Click tracked successfully' });
