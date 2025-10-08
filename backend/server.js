@@ -12,8 +12,6 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-const cors = require('cors');
-
 const rawOrigins = [
   process.env.FRONTEND_BASE_URL,
   ...(process.env.FRONTEND_BASE_URLS || '').split(',')
