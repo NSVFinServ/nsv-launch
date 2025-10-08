@@ -15,42 +15,12 @@ const PORT = process.env.PORT || 5000;
 // ---- Proxy & CORS (final strict allow-list) ----
 app.set('trust proxy', 1);
 
-const rawOrigins = [
-  process.env.FRONTEND_BASE_URL,
-  ...(process.env.FRONTEND_BASE_URLS || '').split(',')
-].map(s => (s || '').trim()).filter(Boolean);
-
-const normalize = (o) => {
-  try {
-    const u = new URL(o);
-    return `${u.protocol}//${u.host}`; // strip path/trailing slash, lowercase host
-  } catch {
-    return o.replace(/\/+$/,'').toLowerCase();
-  }
-};
-
-const expandVariants = (origin) => {
-  try {
-    const u = new URL(origin);
-    const host = u.host.toLowerCase();
-    const isWWW = host.startsWith('www.');
-    const apexHost = isWWW ? host.slice(4) : host;
-    const wwwHost  = isWWW ? host : `www.${host}`;
-    return new Set([
-      `${u.protocol}//${host}`,
-      `${u.protocol}//${apexHost}`,
-      `${u.protocol}//${wwwHost}`,
-    ]);
-  } catch {
-    return new Set([origin]);
-  }
-};
-
-const baseAllowed = new Set(rawOrigins.map(normalize));
-const allowedOrigins = new Set([
-  ...[...baseAllowed].flatMap(o => [...expandVariants(o)]),
-  'http://localhost:5173', // local dev
-]);
+// Strict CORS allow-list
+const allowedOrigins = [
+  'https://www.nsvfinserv.com',
+  'https://nsvfinserv.com',
+  'http://localhost:5173',
+];
 
 const isAllowedByRule = (origin) => {
   if (allowedOrigins.has(origin)) return true;
@@ -64,10 +34,9 @@ const isAllowedByRule = (origin) => {
 
 const corsOptions = {
   origin: (origin, cb) => {
-    const o = origin ? normalize(origin) : null;
-    if (!o) return cb(null, true);               // non-browser clients
-    if (isAllowedByRule(o)) return cb(null, true);
-    console.warn('CORS blocked for origin:', origin, 'Allowed set:', [...allowedOrigins]);
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    console.warn('CORS blocked for origin:', origin, 'Allowed:', allowedOrigins);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
