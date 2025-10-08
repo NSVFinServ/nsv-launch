@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "./EventBanner.css";
-import { eventsAPI } from '../lib/api';  // Import the new API service
+import { eventsAPI } from '../lib/api.ts';  // Import the new API service
 
 interface Event {
   id: number;
