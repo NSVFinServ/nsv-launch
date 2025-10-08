@@ -4,7 +4,7 @@ import { Mail, ArrowLeft, RefreshCw } from "lucide-react"
 import { Button } from "../../components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card"
 import logo from '../../components/logo.png'
-import { API_BASE_URL, withApi } from '@/lib/api';
+import { API_BASE_URL, withApi } from '@/lib/api.ts';
 
 export default function EmailDisplayPage() {
   const [emails, setEmails] = useState([])
