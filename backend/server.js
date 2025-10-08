@@ -9,6 +9,19 @@ const path = require('path');
 const otpGenerator = require('otp-generator');
 
 const app = express();
+// TEMP: permissive CORS to verify connectivity quickly
+app.set('trust proxy', 1);
+
+const permissive = {
+  origin: true,                 // reflect the request Origin
+  credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization'],
+};
+
+app.use(cors(permissive));
+// IMPORTANT: preflight must use the SAME options
+app.options('*', cors(permissive));
 const PORT = process.env.PORT || 10000;
 
 // ---- Security / proxy ----
