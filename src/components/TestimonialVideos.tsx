@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Play, MapPin, User } from 'lucide-react';
-import { videosAPI } from '../lib/api';  // Import the new API service
+import { videosAPI } from '../lib/api.ts';  // Import the new API service
 
 interface TestimonialVideo {
   id: number;
