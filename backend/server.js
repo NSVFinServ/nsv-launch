@@ -12,16 +12,31 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
+const cors = require('cors');
+
+const rawOrigins = [
+  process.env.FRONTEND_BASE_URL,
+  ...(process.env.FRONTEND_BASE_URLS || '').split(',')
+].map(s => (s || '').trim()).filter(Boolean);
+
+const allowedOrigins = new Set([
+  ...rawOrigins,
+  'http://localhost:5173' // dev
+]);
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? [process.env.FRONTEND_BASE_URL].filter(Boolean)
-    : [
-        process.env.FRONTEND_BASE_URL,
-        'http://localhost:3000',  // Frontend dev server
-        'http://localhost:5173'   // Vite default port
-      ].filter(Boolean),
-  credentials: true
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // non-browser clients
+    if (allowedOrigins.has(origin)) return cb(null, true);
+    return cb(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
 }));
+
+// (optional but nice) handle explicit preflight
+app.options('*', cors());
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
