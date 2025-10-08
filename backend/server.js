@@ -12,50 +12,9 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // 1) Trust proxy (Render/HTTPS)
+// ---- Proxy & CORS (final strict allow-list) ----
 app.set('trust proxy', 1);
 
-// 2) TEMP permissive CORS to unblock (we’ll tighten later)
-const corsOptions = {
-  origin: true, // reflect the request Origin
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-};
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
-
-// 3) Minimal, safe middleware BEFORE anything complex
-app.use(express.json());
-app.use('/uploads', express.static('uploads'));
-
-// 4) Bulletproof health routes (cannot throw)
-app.get('/', (req, res) => res.type('text/plain').send('NSV Finserv API. See /api/health'));
-app.get('/api', (req, res) => res.json({ ok: true, msg: 'API base. Try /api/health' }));
-app.get('/api/health', (req, res) => {
-  try {
-    res.status(200).json({ ok: true, time: Date.now() });
-  } catch (e) {
-    // Even if something odd happens, do not throw HTML
-    res.status(200).type('application/json').send('{"ok":true}');
-  }
-});
-
-// 5) Global error handler (puts JSON instead of HTML)
-app.use((err, req, res, next) => {
-  console.error('UNHANDLED ERROR:', err && err.stack ? err.stack : err);
-  // Don’t leak internals—send a small message so the browser doesn’t try to parse HTML
-  if (res.headersSent) return;
-  res
-    .status(500)
-    .type('application/json')
-    .send(JSON.stringify({ error: 'internal_error', message: err?.message || 'Server error' }));
-});
-
-
-// ---- Security / proxy ----
-app.set('trust proxy', 1);
-
-// ---- CORS (allow-list with normalization + subdomain support) ----
 const rawOrigins = [
   process.env.FRONTEND_BASE_URL,
   ...(process.env.FRONTEND_BASE_URLS || '').split(',')
@@ -64,13 +23,11 @@ const rawOrigins = [
 const normalize = (o) => {
   try {
     const u = new URL(o);
-    return `${u.protocol}//${u.host}`; // strip trailing slash, lowercase host
+    return `${u.protocol}//${u.host}`; // strip path/trailing slash, lowercase host
   } catch {
     return o.replace(/\/+$/,'').toLowerCase();
   }
 };
-
-const baseAllowed = new Set(rawOrigins.map(normalize));
 
 const expandVariants = (origin) => {
   try {
@@ -89,16 +46,17 @@ const expandVariants = (origin) => {
   }
 };
 
+const baseAllowed = new Set(rawOrigins.map(normalize));
 const allowedOrigins = new Set([
   ...[...baseAllowed].flatMap(o => [...expandVariants(o)]),
-  'http://localhost:5173', // dev
+  'http://localhost:5173', // local dev
 ]);
 
 const isAllowedByRule = (origin) => {
   if (allowedOrigins.has(origin)) return true;
   try {
     const h = new URL(origin).host.toLowerCase();
-    // allow Vercel previews/production for your app
+    // allow Vercel previews/production (adjust if you want to restrict)
     if (h.endsWith('.vercel.app')) return true;
   } catch {}
   return false;
@@ -107,7 +65,7 @@ const isAllowedByRule = (origin) => {
 const corsOptions = {
   origin: (origin, cb) => {
     const o = origin ? normalize(origin) : null;
-    if (!o) return cb(null, true); // non-browser clients
+    if (!o) return cb(null, true);               // non-browser clients
     if (isAllowedByRule(o)) return cb(null, true);
     console.warn('CORS blocked for origin:', origin, 'Allowed set:', [...allowedOrigins]);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
@@ -123,8 +81,20 @@ app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
-// ---------- Health endpoint ----------
-app.get('/api/health', (req, res) => res.json({ ok: true, time: Date.now() }));
+// ---------- Health endpoints ----------
+app.get('/', (req, res) => res.type('text/plain').send('NSV Finserv API. See /api/health'));
+app.get('/api', (req, res) => res.json({ ok: true, msg: 'API base. Try /api/health' }));
+app.get('/api/health', (req, res) => res.status(200).json({ ok: true, time: Date.now() }));
+
+// ---------- Global error handler (JSON, not HTML) ----------
+app.use((err, req, res, next) => {
+  console.error('UNHANDLED ERROR:', err && err.stack ? err.stack : err);
+  if (res.headersSent) return;
+  res
+    .status(500)
+    .type('application/json')
+    .send(JSON.stringify({ error: 'internal_error', message: err?.message || 'Server error' }));
+});
 
 // ---------- Multer (unchanged) ----------
 const storage = multer.diskStorage({
