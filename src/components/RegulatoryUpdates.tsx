@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, BookOpen } from 'lucide-react';
-import { regulatoryAPI } from '../lib/api';  // Import the new API service
+import { regulatoryAPI } from '../lib/api.ts';  // Import the new API service
 
 interface RegulatoryUpdate {
   id: number;
