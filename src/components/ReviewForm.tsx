@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Star, X, Send } from 'lucide-react';
-import { reviewsAPI } from '../lib/api';  // Import the new API service
+import { reviewsAPI } from '../lib/api.ts';  // Import the new API service
 
 interface ReviewFormProps {
   isOpen: boolean;
