@@ -1,5 +1,5 @@
 // Analytics utility for tracking website interactions
-import { analyticsAPI } from './api';
+import { analyticsAPI } from './api.ts';
 
 export const trackClick = async (page: string, action: string) => {
   try {
