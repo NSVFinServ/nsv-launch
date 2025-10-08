@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL, withApi } from '@/lib/api';
+import { API_BASE_URL } from '@/lib/api';
+import{
   Users, 
   FileText, 
   TrendingUp, 
@@ -23,7 +24,6 @@ import { API_BASE_URL, withApi } from '@/lib/api';
   Calculator
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { loanAPI } from '../../lib/api';  // Import the new API service
 
 // Define TypeScript interfaces
 interface User {
@@ -323,7 +323,7 @@ const AdminDashboardClean = () => {
       }
 
       // Remove the update from local state
-      setRegulatoryUpdates(regulatoryUpdates.filter(update => update.id !== id));
+      setRegulatoryUpdates(regulatoryUpdates.filter((update: RegulatoryUpdate) => update.id !== id));
 
       showActionMessage('Regulatory update deleted successfully', 'success');
     } catch (err: any) {
@@ -338,7 +338,7 @@ const AdminDashboardClean = () => {
       console.log('Updating referral status:', { id, status });
       
       // First, get the current referral to check its state
-      const currentReferral = referrals.find(r => r.id === id);
+      const currentReferral = referrals.find((r: Referral) => r.id === id);
       console.log('Current referral:', currentReferral);
       
       // Check if we have a valid token
@@ -382,7 +382,7 @@ const AdminDashboardClean = () => {
       console.log('Update result:', result);
 
       // Update local state
-      setReferrals(referrals.map(referral => 
+      setReferrals(referrals.map((referral: Referral) => 
         referral.id === id ? { ...referral, status } : referral
       ));
 
@@ -425,7 +425,7 @@ const AdminDashboardClean = () => {
       }
 
       // Update local state
-      setLoanApplications(loanApplications.map(application => 
+      setLoanApplications(loanApplications.map((application: LoanApplication) => 
         application.id === id ? { ...application, status } : application
       ));
 
@@ -456,7 +456,7 @@ const AdminDashboardClean = () => {
       }
 
       // Remove the application from local state
-      setLoanApplications(loanApplications.filter(application => application.id !== id));
+      setLoanApplications(loanApplications.filter((application: LoanApplication) => application.id !== id));
 
       showActionMessage('Loan application deleted successfully', 'success');
     } catch (err: any) {
@@ -485,7 +485,7 @@ const AdminDashboardClean = () => {
       }
 
       // Remove the referral from local state
-      setReferrals(referrals.filter(referral => referral.id !== id));
+      setReferrals(referrals.filter((referral: Referral) => referral.id !== id));
 
       showActionMessage('Referral deleted successfully', 'success');
     } catch (err: any) {
@@ -512,7 +512,7 @@ const AdminDashboardClean = () => {
       }
 
       // Update local state
-      setEligibilitySubmissions(eligibilitySubmissions.map(submission => 
+      setEligibilitySubmissions(eligibilitySubmissions.map((submission: EligibilitySubmission) => 
         submission.id === id ? { ...submission, status } : submission
       ));
 
@@ -543,7 +543,7 @@ const AdminDashboardClean = () => {
       }
 
       // Remove the submission from local state
-      setEligibilitySubmissions(eligibilitySubmissions.filter(submission => submission.id !== id));
+      setEligibilitySubmissions(eligibilitySubmissions.filter((submission: EligibilitySubmission) => submission.id !== id));
 
       showActionMessage('Eligibility submission deleted successfully', 'success');
     } catch (err: any) {
@@ -569,7 +569,7 @@ const AdminDashboardClean = () => {
       }
 
       // Update local state
-      setReviews(reviews.map(review => 
+      setReviews(reviews.map((review: Review) => 
         review.id === id ? { ...review, status: isApproved ? 'verified' : 'rejected' } : review
       ));
 
@@ -601,7 +601,7 @@ const AdminDashboardClean = () => {
       }
 
       // Remove the review from local state
-      setReviews(reviews.filter(review => review.id !== id));
+      setReviews(reviews.filter((review: Review) => review.id !== id));
 
       showActionMessage('Review deleted successfully', 'success');
     } catch (err: any) {
@@ -630,7 +630,7 @@ const AdminDashboardClean = () => {
       }
 
       // Remove the event from local state
-      setEvents(events.filter(event => event.id !== id));
+      setEvents(events.filter((event: Event) => event.id !== id));
 
       showActionMessage('Event deleted successfully', 'success');
     } catch (err: any) {
@@ -659,7 +659,7 @@ const AdminDashboardClean = () => {
       }
 
       // Remove the video from local state
-      setTestimonialVideos(testimonialVideos.filter(video => video.id !== id));
+      setTestimonialVideos(testimonialVideos.filter((video: TestimonialVideo) => video.id !== id));
 
       showActionMessage('Testimonial video deleted successfully', 'success');
     } catch (err: any) {
