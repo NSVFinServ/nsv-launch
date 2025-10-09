@@ -479,15 +479,16 @@ app.post('/api/ask-expert', async (req, res) => {
 app.post('/api/track-click', async (req, res) => {
   try {
     const { page, action, user_id } = req.body;
-    
-    // Handle admin user_id (convert 'admin' to null)
+
+    // Convert admin to null
     const userId = (user_id === 'admin' || user_id === null) ? null : user_id;
-    // Insert click tracking
-    const [result] = await promisePool.query(
+
+    // ✅ Correct query
+    await promisePool.query(
       'INSERT INTO website_analytics (page, action, user_id, timestamp) VALUES (?, ?, ?, NOW())',
-      [page, action, userId, new Date()]
+      [page, action, userId] // removed new Date()
     );
-    
+
     res.json({ message: 'Click tracked successfully' });
   } catch (error) {
     console.error('Analytics error:', error);
