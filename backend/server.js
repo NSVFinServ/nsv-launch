@@ -20,6 +20,7 @@ const allowedOrigins = [
   'https://www.nsvfinserv.com',
   'https://nsvfinserv.com',
   'http://localhost:5173',
+  'https://nsv-launch-3m1fhzk2j-nihaltallas-projects.vercel.app'
 ];
 
 const isAllowedByRule = (origin) => {
