@@ -19,45 +19,61 @@ app.set('trust proxy', 1);
 const allowedOrigins = [
   'https://www.nsvfinserv.com',
   'https://nsvfinserv.com',
-  'http://localhost:5173',
-  /^https:\/\/.*\.vercel\.app$/
+  'http://localhost:5173'
 ];
 
-const isAllowedByRule = (origin) => {
-  if (allowedOrigins.has(origin)) return true;
+/* ------------------------ 2) CORS Allow-List ------------------------- */
+const rawOrigins = [
+  process.env.FRONTEND_BASE_URL,
+  ...(process.env.FRONTEND_BASE_URLS || '').split(',')
+].map(s => (s || '').trim()).filter(Boolean);
+
+// Normalize (strip trailing slash, lower-case host)
+const normalize = (o) => {
   try {
-    const h = new URL(origin).host.toLowerCase();
-    // allow Vercel previews/production (adjust if you want to restrict)
-    if (h.endsWith('.vercel.app')) return true;
-  } catch {}
-  return false;
+    const u = new URL(o);
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return o.replace(/\/+$/,'').toLowerCase();
+  }
 };
+
+// Build exact string allow-list for your domains + localhost
+const allowedOrigins = new Set([
+  ...rawOrigins.map(normalize),
+  'http://localhost:5173',
+]);
 
 const corsOptions = {
   origin: (origin, cb) => {
     if (!origin) return cb(null, true); // non-browser clients
 
-    // Normalize (strip trailing slash, lowercase)
+    // Normalize the incoming origin once
     let o = origin.replace(/\/+$/,'').toLowerCase();
 
-    // Always allow Vercel previews/production
+    // 1) Always allow any Vercel preview/production
     try {
       const host = new URL(o).host.toLowerCase();
       if (host.endsWith('.vercel.app')) {
         return cb(null, true);
       }
-    } catch { /* ignore URL parse errors */ }
+    } catch { /* ignore parse errors */ }
 
-    // Exact allow-list check (your www/apex + localhost)
-    if (allowedOrigins.has(o)) return cb(null, true);
+    // 2) Exact match against allow-list
+    if (allowedOrigins.has(o)) {
+      return cb(null, true);
+    }
 
-    console.warn('CORS blocked for origin:', origin, 'Allowed set:', [...allowedOrigins]);
+    console.warn('CORS blocked for origin:', origin, 'Allowed:', [...allowedOrigins]);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
 };
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 
 app.use(cors(corsOptions));
