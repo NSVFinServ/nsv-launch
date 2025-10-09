@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Star, X, Send } from 'lucide-react';
-import { reviewsAPI } from '@/lib/api.ts';// Import the new API service
+import { reviewsAPI } from '@/lib/api';// Import the new API service
 
 interface ReviewFormProps {
   isOpen: boolean;
@@ -28,7 +28,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ isOpen, onClose }) => {
     setIsSubmitting(true);
     
     try {
-      const response = await reviewsAPI.create({
+      const res = await reviewsAPI.create({
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
