@@ -425,9 +425,9 @@ const createLoanApplication = async (req, res) => {
 // Primary route (keep this)
 app.post('/api/loan-application', createLoanApplication);
 
-// Back-compat aliases (so existing frontends won’t 404)
-app.post('/api/loan/apply', createLoanApplication);
-app.post('/api/loan-applications', createLoanApplication);
+// // Back-compat aliases (so existing frontends won’t 404)
+// app.post('/api/loan/apply', createLoanApplication);
+// app.post('/api/loan-applications', createLoanApplication);
 
 
 // 5. Get Services
