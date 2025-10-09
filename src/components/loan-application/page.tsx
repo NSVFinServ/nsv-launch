@@ -4,8 +4,8 @@ import { Link } from "react-router-dom"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
-import { loanAPI } from '../../lib/api.ts'  // Use the new API service
 import logo from '../../components/logo.png'
+import { API_BASE_URL } from '@/lib/api.ts'
 
 export default function LoanApplicationPage() {
   const [formData, setFormData] = useState({
@@ -18,50 +18,77 @@ export default function LoanApplicationPage() {
     purpose: "",
   })
 
+  const [isLoading, setIsLoading] = useState(false)
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+    setIsLoading(true)
+
     try {
-      // Get current user from localStorage
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      
+      const user = JSON.parse(localStorage.getItem("user") || "{}")
+
       if (!user.id) {
-        alert('Please login first to submit a loan application');
-        return;
+        alert("⚠️ Please login first to submit a loan application.")
+        setIsLoading(false)
+        return
       }
 
-      // For now, using service_id = 1 (Home Loan) - you can add a dropdown to select service
-      const response = await loanAPI.submit({
-        user_id: user.id,
-        service_id: 1, // Default to Home Loan
-        amount: parseFloat(formData.loanAmount)
-      });
+      // Make API request similar to LoginPage
+      const response = await fetch(`${API_BASE_URL}/loan/apply`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          service_id: 1, // Default to Home Loan
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          aadhaar: formData.aadhaar,
+          pan: formData.pan,
+          loanAmount: parseFloat(formData.loanAmount),
+          purpose: formData.purpose,
+        }),
+      })
 
-      alert("✅ Your application is successful! Soon our expert will be contacted with you.");
-      // Reset form
-      setFormData({
-        fullName: "",
-        email: "",
-        phone: "",
-        aadhaar: "",
-        pan: "",
-        loanAmount: "",
-        purpose: "",
-      });
+      const data = await response.json()
+
+      if (response.ok) {
+        alert("✅ Your application has been submitted successfully! Our team will contact you soon.")
+        setFormData({
+          fullName: "",
+          email: "",
+          phone: "",
+          aadhaar: "",
+          pan: "",
+          loanAmount: "",
+          purpose: "",
+        })
+      } else {
+        console.error("Loan application failed:", data)
+        alert(data.message || "Loan application submission failed. Please try again.")
+      }
     } catch (error) {
-      console.error('Loan application error:', error);
-      alert('Loan application submission failed. Please try again.');
+      console.error("Loan application error:", error)
+      if (error.name === "TypeError" && error.message.includes("fetch")) {
+        alert("Cannot connect to server. Please make sure the backend is running.")
+      } else {
+        alert("Loan application submission failed. Please try again.")
+      }
+    } finally {
+      setIsLoading(false)
     }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
-        {/* Back to Home Link */}
         <Link to="/" className="inline-flex items-center text-gray-900 hover:text-gray-500 mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Home
@@ -69,7 +96,6 @@ export default function LoanApplicationPage() {
 
         <Card className="shadow-xl border-0">
           <CardHeader className="text-center pb-6">
-            {/* Logo */}
             <div className="flex items-center justify-center space-x-2 mb-4">
               <img src={logo} alt="NSV Finance Logo" className="w-10 h-10 rounded-full object-cover" />
               <div>
@@ -86,77 +112,21 @@ export default function LoanApplicationPage() {
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                type="text"
-                name="fullName"
-                placeholder="Full Name"
-                value={formData.fullName}
-                onChange={handleChange}
-                required
-                className="h-12 focus:ring-gray-400 focus:outline-none focus:border-gray-400"
-              />
-              <Input
-                type="email"
-                name="email"
-                placeholder="Email Address"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className="h-12 focus:ring-gray-400 focus:outline-none focus:border-gray-400"
-              />
-              <Input
-                type="tel"
-                name="phone"
-                placeholder="Phone Number"
-                value={formData.phone}
-                onChange={handleChange}
-                required
-                className="h-12 focus:ring-gray-400 focus:outline-none focus:border-gray-400"
-              />
-              <Input
-                type="text"
-                name="aadhaar"
-                placeholder="Aadhaar Number"
-                value={formData.aadhaar}
-                onChange={handleChange}
-                required
-                className="h-12 focus:ring-gray-400 focus:outline-none focus:border-gray-400"
-              />
-              <Input
-                type="text"
-                name="pan"
-                placeholder="PAN Number"
-                value={formData.pan}
-                onChange={handleChange}
-                required
-                className="h-12 focus:ring-gray-400 focus:outline-none focus:border-gray-400"
-              />
-              <Input
-                type="number"
-                name="loanAmount"
-                placeholder="Loan Amount (₹)"
-                value={formData.loanAmount}
-                onChange={handleChange}
-                required
-                className="h-12 focus:ring-gray-400 focus:outline-none focus:border-gray-400"
-              />
-              <textarea
-                name="purpose"
-                placeholder="Purpose of Loan"
-                value={formData.purpose}
-                onChange={handleChange}
-                required
-                className="w-full p-3 border rounded-xl h-24 resize-none"
-              />
+              <Input name="fullName" placeholder="Full Name" value={formData.fullName} onChange={handleChange} required />
+              <Input name="email" type="email" placeholder="Email Address" value={formData.email} onChange={handleChange} required />
+              <Input name="phone" type="tel" placeholder="Phone Number" value={formData.phone} onChange={handleChange} required />
+              <Input name="aadhaar" placeholder="Aadhaar Number" value={formData.aadhaar} onChange={handleChange} required />
+              <Input name="pan" placeholder="PAN Number" value={formData.pan} onChange={handleChange} required />
+              <Input name="loanAmount" type="number" placeholder="Loan Amount (₹)" value={formData.loanAmount} onChange={handleChange} required />
+              <textarea name="purpose" placeholder="Purpose of Loan" value={formData.purpose} onChange={handleChange} required className="w-full p-3 border rounded-xl h-24 resize-none" />
 
-              <Button type="submit" className="w-full h-12 bg-gray-900 hover:bg-gray-500 text-white font-medium">
-                Submit Application
+              <Button type="submit" className="w-full h-12 bg-gray-900 hover:bg-gray-500 text-white font-medium" disabled={isLoading}>
+                {isLoading ? "Submitting..." : "Submit Application"}
               </Button>
             </form>
           </CardContent>
         </Card>
 
-        {/* Contact Info */}
         <div className="mt-6 text-center text-sm text-gray-600">
           <p>Need help? Contact us at</p>
           <p className="font-medium">+91-9885885847 | nsvfinserv@gmail.com</p>
