@@ -65,16 +65,22 @@ export const regulatoryAPI = {
 
 // src/lib/api.ts
 export const loanAPI = {
+  // ✅ CREATE — this already points to the correct endpoint.
+  // Just be sure the payload is: { user_id, service_id, amount, ask_expert_id? }
   apply: (payload: any) =>
-    apiFetch('/loan-application', {            // <-- not /loan/apply
+    apiFetch('/loan-application', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }),
-  list: () => apiFetch('/loan-application'),
+
+  // ✅ LIST — fix the path to plural to match backend GET /api/loan-applications
+  list: () => apiFetch('/loan-applications'),
+
+  // ✅ UPDATE STATUS — match backend: PUT /api/admin/loan-applications/:id  (no /status)
   updateStatus: (id: string | number, status: string) =>
-    apiFetch(`/loan-applications/${id}/status`, {
-      method: 'PATCH',
+    apiFetch(`/admin/loan-applications/${id}`, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     }),
