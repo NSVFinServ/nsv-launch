@@ -498,24 +498,33 @@ app.post('/api/ask-expert', async (req, res) => {
 // 10. Track Website Analytics
 app.post('/api/track-click', async (req, res) => {
   try {
-    const body = (req && req.body) || {};
-    const page   = typeof body.page === 'string'   ? body.page.trim()   : '';
-    const action = typeof body.action === 'string' ? body.action.trim() : '';
-    const meta   = (body && body.meta) || null;
+    // Accept both flat and nested { page: { ... } } payloads
+    const raw = (req && req.body) || {};
+    const src = (raw && typeof raw.page === 'object' && raw.page !== null)
+      ? raw.page
+      : raw;
+
+    const page   = typeof src.page === 'string'   ? src.page.trim()   : '';
+    const action = typeof src.action === 'string' ? src.action.trim() : '';
+    const userId = src.user_id ?? src.userId ?? null;
+    const meta   = src.meta ?? null;
 
     if (!page || !action) {
-      // log once to help debug callers
-      console.warn('track-click missing fields:', { body });
+      console.warn('track-click missing fields (normalized):', { src, raw });
       return res.status(400).json({ ok: false, error: 'Missing required fields: page, action' });
     }
 
-    // TODO: store in DB if you like; this example just echoes
+    // TODO: persist to DB if desired (use promisePool)
+    // await promisePool.execute('INSERT INTO analytics (page, action, user_id, meta) VALUES (?,?,?,?)',
+    //   [page, action, userId, JSON.stringify(meta)]);
+
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error('Analytics error:', err);
     return res.status(500).json({ ok: false, error: 'analytics_failed' });
   }
 });
+
 
 // 11. Get Website Analytics
 app.get('/api/analytics', async (req, res) => {
