@@ -38,24 +38,26 @@ export default function LoanApplicationPage() {
       }
 
       // Make API request similar to LoginPage
-     const repsonse = await fetch(`${API_BASE_URL}/loan-application`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
-          user_id: user.id,
-          service_id: 1, // Default to Home Loan
-          fullName: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          aadhaar: formData.aadhaar,
-          pan: formData.pan,
-          loanAmount: parseFloat(formData.loanAmount),
-          purpose: formData.purpose,
-        }),
-      })
+     const response = await fetch(`${API_BASE_URL}/loan-application`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
+  },
+  body: JSON.stringify({
+    user_id: user.id,
+    service_id: 1, // make sure this service exists in DB
+    amount: Number(formData.loanAmount), // <-- this is the important rename
+    // extra fields are fine; backend ignores them
+    fullName: formData.fullName,
+    email: formData.email,
+    phone: formData.phone,
+    aadhaar: formData.aadhaar,
+    pan: formData.pan,
+    purpose: formData.purpose,
+  }),
+});
+
 
       const data = await response.json()
 
@@ -69,7 +71,7 @@ export default function LoanApplicationPage() {
           pan: "",
           loanAmount: "",
           purpose: "",
-        })
+        });
       } else {
         console.error("Loan application failed:", data)
         alert(data.message || "Loan application submission failed. Please try again.")
