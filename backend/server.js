@@ -19,8 +19,7 @@ app.set('trust proxy', 1);
 const allowedOrigins = [
   'https://www.nsvfinserv.com',
   'https://nsvfinserv.com',
-  'http://localhost:5173',
-  'https://nsv-launch-3m1fhzk2j-nihaltallas-projects.vercel.app'
+  'http://localhost:5173'
 ];
 
 const isAllowedByRule = (origin) => {
@@ -35,17 +34,30 @@ const isAllowedByRule = (origin) => {
 
 const corsOptions = {
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
+    if (!origin) return cb(null, true); // non-browser clients
 
-    if (allowedOrigins.includes(origin)) return cb(null, true);
-    
-    console.warn('CORS blocked for origin:', origin, 'Allowed:', allowedOrigins);
+    // Normalize (strip trailing slash, lowercase)
+    let o = origin.replace(/\/+$/,'').toLowerCase();
+
+    // Always allow Vercel previews/production
+    try {
+      const host = new URL(o).host.toLowerCase();
+      if (host.endsWith('.vercel.app')) {
+        return cb(null, true);
+      }
+    } catch { /* ignore URL parse errors */ }
+
+    // Exact allow-list check (your www/apex + localhost)
+    if (allowedOrigins.has(o)) return cb(null, true);
+
+    console.warn('CORS blocked for origin:', origin, 'Allowed set:', [...allowedOrigins]);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
 };
+
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
