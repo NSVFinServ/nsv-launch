@@ -66,12 +66,12 @@ export const regulatoryAPI = {
 // src/lib/api.ts
 export const loanAPI = {
   apply: (payload: any) =>
-    apiFetch('/loan-applications', {            // <-- not /loan/apply
+    apiFetch('/loan-application', {            // <-- not /loan/apply
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }),
-  list: () => apiFetch('/loan-applications'),
+  list: () => apiFetch('/loan-application'),
   updateStatus: (id: string | number, status: string) =>
     apiFetch(`/loan-applications/${id}/status`, {
       method: 'PATCH',
