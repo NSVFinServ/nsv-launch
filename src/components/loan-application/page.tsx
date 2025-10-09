@@ -38,7 +38,7 @@ export default function LoanApplicationPage() {
       }
 
       // Make API request similar to LoginPage
-      const response = await fetch(`${API_BASE_URL}/loan/apply`, {
+      fetch(`${API_BASE_URL}/loan-applications`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
