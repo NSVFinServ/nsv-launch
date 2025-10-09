@@ -504,20 +504,23 @@ app.post('/api/ask-expert', async (req, res) => {
 });
 
 // 10. Track Website Analytics
-app.post('/api/track-click', async (req, res) => { 
-  try { 
-    const { page, action, user_id } = req.body; // Handle admin user_id (convert 'admin' to null)
-    const userId = (user_id === 'admin' || user_id === null) ? null : user_id; // Insert click tracking 
-    const [result] = await promisePool.query( 
-      'INSERT INTO website_analytics (page, action, user_id, timestamp) VALUES (?, ?, ?, NOW())',
-      [page, action, userId, new Date()] 
-    ); 
+app.post('/api/track-click', async (req, res) => {
+  try {
+    const { page, action, user_id } = req.body;
+
+    const userId = (user_id === 'admin' || !user_id) ? null : user_id;
+
+    // ✅ Only 3 placeholders because timestamp auto-fills
+    await promisePool.query(
+      'INSERT INTO website_analytics (page, action, user_id) VALUES (?, ?, ?)',
+      [page, action, userId]
+    );
+
     res.json({ message: 'Click tracked successfully' });
-  } 
-  catch (error) { 
-    console.error('Analytics error:', error); 
-    res.status(500).json({ message: 'Internal server error' }); 
-  } 
+  } catch (error) {
+    console.error('Analytics error details:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 // 11. Get Website Analytics
