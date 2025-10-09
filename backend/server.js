@@ -13,62 +13,52 @@ const PORT = process.env.PORT || 10000;
 
 // 1) Trust proxy (Render/HTTPS)
 // ---- Proxy & CORS (final strict allow-list) ----
+/* ------------------------ CORS Allow-List (clean) ------------------------- */
 app.set('trust proxy', 1);
 
-// Strict CORS allow-list
-const allowedOrigins = [
-  'https://www.nsvfinserv.com',
-  'https://nsvfinserv.com',
-  'http://localhost:5173'
-];
-
-/* ------------------------ 2) CORS Allow-List ------------------------- */
-/* ------------------------ CORS Allow-List ------------------------- */
-const rawOrigins = [
-  process.env.FRONTEND_BASE_URL,
-  ...(process.env.FRONTEND_BASE_URLS || '').split(',')
-].map(s => (s || '').trim()).filter(Boolean);
-
-// Normalize (strip trailing slash, lowercase host)
+// Normalize an origin to "protocol://host[:port]" (no path/trailing slash)
 const normalize = (o) => {
   try {
     const u = new URL(o);
     return `${u.protocol}//${u.host}`;
   } catch {
-    return o.replace(/\/+$/,'').toLowerCase();
+    return String(o || '').trim().replace(/\/+$/,'').toLowerCase();
   }
 };
 
-// Build a **List** first, then freeze into a **Set**
+// Read env and normalize
+const rawOrigins = [
+  process.env.FRONTEND_BASE_URL,
+  ...(process.env.FRONTEND_BASE_URLS || '').split(',')
+].map(s => (s || '').trim()).filter(Boolean);
+
+// Build exact allow-list, then convert to a Set
 const allowedOriginList = [
   ...rawOrigins.map(normalize),
-  'http://localhost:5173'
+  'https://www.nsvfinserv.com',
+  'https://nsvfinserv.com',
+  'http://localhost:5173',
 ];
 
 const allowedOriginsSet = new Set(allowedOriginList);
 
 const corsOptions = {
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true); // non-browser clients
+    // Non-browser clients (no Origin header) — allow
+    if (!origin) return cb(null, true);
 
-    // Normalize incoming origin once
-    let o = origin.replace(/\/+$/,'').toLowerCase();
+    const o = normalize(origin);
 
-    // 1) Allow any Vercel preview/prod (no regex stored in the set)
+    // Always allow any Vercel preview/production domain
     try {
       const host = new URL(o).host.toLowerCase();
-      if (host.endsWith('.vercel.app')) {
-        return cb(null, true);
-      }
+      if (host.endsWith('.vercel.app')) return cb(null, true);
     } catch { /* ignore parse errors */ }
 
-    // 2) Exact allow-list match via **Set**
-    if (allowedOriginsSet.has(o)) {
-      return cb(null, true);
-    }
+    // Exact match against our Set
+    if (allowedOriginsSet.has(o)) return cb(null, true);
 
-    console.warn('CORS blocked for origin:', origin,
-      'Allowed list:', allowedOriginList);
+    console.warn('CORS blocked for origin:', origin, 'Allowed list:', allowedOriginList);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
@@ -76,18 +66,10 @@ const corsOptions = {
   allowedHeaders: ['Content-Type','Authorization'],
 };
 
+// Mount ONCE (remove any duplicate cors/app.options you had before)
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
-
-
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
-
-app.use(express.json());
-app.use('/uploads', express.static('uploads'));
 
 // ---------- Health endpoints ----------
 app.get('/', (req, res) => res.type('text/plain').send('NSV Finserv API. See /api/health'));
