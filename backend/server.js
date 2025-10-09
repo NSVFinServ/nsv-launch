@@ -837,23 +837,73 @@ app.get('/api/reviews', (req, res) => {
 });
 
 // Submit a new review
-app.post('/api/reviews', (req, res) => {
-  const { name, email, phone, rating, reviewText, userId } = req.body;
-  
-  if (!name || !rating || !reviewText) {
-    return res.status(400).json({ error: 'Name, rating and review text are required' });
-  }
-  
-  const query = 'INSERT INTO customer_reviews (user_id, name, email, phone, rating, review_text, status) VALUES (?, ?, ?, ?, ?, ?, "pending")';
-  
-  pool.query(query, [userId || null, name, email, phone, rating, reviewText], (err, result) => {
-    if (err) {
-      console.error('Error submitting review:', err);
-      return res.status(500).json({ error: 'Failed to submit review' });
+// Submit a new review (enrich from latest loan application)
+app.post('/api/reviews', async (req, res) => {
+  try {
+    const { name, email, phone, rating, reviewText } = req.body;
+
+    if (!name || !email || !rating || !reviewText) {
+      return res.status(400).json({ error: 'Name, email, rating, and review text are required' });
     }
-    res.status(201).json({ message: 'Review submitted successfully and pending approval', id: result.insertId });
-  });
+
+    // 1) Find user by email
+    const [users] = await promisePool.query(
+      'SELECT id FROM users WHERE email = ? LIMIT 1',
+      [email]
+    );
+    if (users.length === 0) {
+      return res.status(400).json({ error: 'No user found for this email. Please sign up / log in first.' });
+    }
+    const userId = users[0].id;
+
+    // 2) Get latest loan application (join services to get loan type/name)
+    const [apps] = await promisePool.query(
+      `
+        SELECT la.amount, s.name AS service_name
+        FROM loan_applications la
+        JOIN services s ON s.id = la.service_id
+        WHERE la.user_id = ?
+        ORDER BY la.submitted_at DESC, la.id DESC
+        LIMIT 1
+      `,
+      [userId]
+    );
+
+    const loan_type   = apps.length ? apps[0].service_name : null;
+    const loan_amount = apps.length ? apps[0].amount       : null;
+
+    // 3) Insert review into your actual columns (no email column)
+    const [result] = await promisePool.query(
+      `
+        INSERT INTO customer_reviews
+          (user_id, name, location, phone, rating, loan_type, loan_amount, review_text, is_approved, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        userId,                 // user_id
+        name,                   // name
+        null,                   // location (not collected)
+        phone || null,          // phone
+        rating,                 // rating
+        loan_type,              // loan_type (service name) or NULL
+        loan_amount,            // loan_amount (from loan_applications) or NULL
+        reviewText,             // review_text
+        0,                      // is_approved = 0 (false)
+        'pending'               // status
+      ]
+    );
+
+    return res.status(201).json({
+      message: 'Review submitted successfully and pending approval',
+      id: result.insertId,
+      enriched_from_loan: { loan_type, loan_amount }
+    });
+  } catch (err) {
+    console.error('Error submitting review:', err);
+    return res.status(500).json({ error: 'Failed to submit review' });
+  }
 });
+
 
 // Admin: Get all reviews (including unapproved) - Protected endpoint
 app.get('/api/admin/reviews', authenticateToken, (req, res) => {
