@@ -23,12 +23,13 @@ const allowedOrigins = [
 ];
 
 /* ------------------------ 2) CORS Allow-List ------------------------- */
+/* ------------------------ CORS Allow-List ------------------------- */
 const rawOrigins = [
   process.env.FRONTEND_BASE_URL,
   ...(process.env.FRONTEND_BASE_URLS || '').split(',')
 ].map(s => (s || '').trim()).filter(Boolean);
 
-// Normalize (strip trailing slash, lower-case host)
+// Normalize (strip trailing slash, lowercase host)
 const normalize = (o) => {
   try {
     const u = new URL(o);
@@ -38,20 +39,22 @@ const normalize = (o) => {
   }
 };
 
-// Build exact string allow-list for your domains + localhost
-const allowedOrigins = new Set([
+// Build a **List** first, then freeze into a **Set**
+const allowedOriginList = [
   ...rawOrigins.map(normalize),
-  'http://localhost:5173',
-]);
+  'http://localhost:5173'
+];
+
+const allowedOriginsSet = new Set(allowedOriginList);
 
 const corsOptions = {
   origin: (origin, cb) => {
     if (!origin) return cb(null, true); // non-browser clients
 
-    // Normalize the incoming origin once
+    // Normalize incoming origin once
     let o = origin.replace(/\/+$/,'').toLowerCase();
 
-    // 1) Always allow any Vercel preview/production
+    // 1) Allow any Vercel preview/prod (no regex stored in the set)
     try {
       const host = new URL(o).host.toLowerCase();
       if (host.endsWith('.vercel.app')) {
@@ -59,18 +62,22 @@ const corsOptions = {
       }
     } catch { /* ignore parse errors */ }
 
-    // 2) Exact match against allow-list
-    if (allowedOrigins.has(o)) {
+    // 2) Exact allow-list match via **Set**
+    if (allowedOriginsSet.has(o)) {
       return cb(null, true);
     }
 
-    console.warn('CORS blocked for origin:', origin, 'Allowed:', [...allowedOrigins]);
+    console.warn('CORS blocked for origin:', origin,
+      'Allowed list:', allowedOriginList);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
 };
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
