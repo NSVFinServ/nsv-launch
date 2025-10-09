@@ -19,7 +19,8 @@ app.set('trust proxy', 1);
 const allowedOrigins = [
   'https://www.nsvfinserv.com',
   'https://nsvfinserv.com',
-  'http://localhost:5173'
+  'http://localhost:5173',
+  /^https:\/\/.*\.vercel\.app$/
 ];
 
 const isAllowedByRule = (origin) => {
