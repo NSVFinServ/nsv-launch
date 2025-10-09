@@ -480,21 +480,22 @@ app.post('/api/track-click', async (req, res) => {
   try {
     const { page, action, user_id } = req.body;
 
-    // Convert admin to null
-    const userId = (user_id === 'admin' || user_id === null) ? null : user_id;
+    // Handle admin user_id (convert 'admin' or undefined to null)
+    const userId = (user_id === 'admin' || !user_id) ? null : user_id;
 
-    // ✅ Correct query
+    // ✅ Correct query (no timestamp column needed)
     await promisePool.query(
-      'INSERT INTO website_analytics (page, action, user_id, timestamp) VALUES (?, ?, ?, NOW())',
-      [page, action, userId] // removed new Date()
+      'INSERT INTO website_analytics (page, action, user_id) VALUES (?, ?, ?)',
+      [page, action, userId]
     );
 
     res.json({ message: 'Click tracked successfully' });
   } catch (error) {
-    console.error('Analytics error:', error);
+    console.error('Analytics error details:', error.message);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 // 11. Get Website Analytics
 app.get('/api/analytics', async (req, res) => {
