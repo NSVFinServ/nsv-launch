@@ -27,6 +27,22 @@ export async function apiFetch<T = any>(
 
 /** Build a full API URL */
 export const withApi = (path: string) => `${API_BASE_URL}${path}`;
+// Reuse your create loan handler
+const createLoan = async (req, res) => {
+  try {
+    // ... your existing DB insert logic reading req.body ...
+    return res.status(201).json({ ok: true });
+  } catch (e) {
+    console.error('Create loan failed:', e);
+    return res.status(500).json({ ok: false, error: 'create_loan_failed' });
+  }
+};
+
+// Main route you already had:
+app.post('/api/loan-applications', createLoan);
+
+// Alias to support old URL:
+app.post('/api/loan/apply', createLoan);
 
 /* ================= Services exported as named symbols ================ */
 
