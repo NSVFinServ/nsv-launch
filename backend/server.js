@@ -9,7 +9,7 @@ const path = require('path');
 const otpGenerator = require('otp-generator');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 
 // 1) Trust proxy (Render/HTTPS)
 // ---- Proxy & CORS (final strict allow-list) ----
@@ -37,16 +37,8 @@ const isAllowedByRule = (origin) => {
 const corsOptions = {
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
-    
-    // Check exact matches first
+
     if (allowedOrigins.includes(origin)) return cb(null, true);
-    
-    // Check regex patterns (for Vercel previews)
-    for (const pattern of allowedOrigins) {
-      if (pattern instanceof RegExp && pattern.test(origin)) {
-        return cb(null, true);
-      }
-    }
     
     console.warn('CORS blocked for origin:', origin, 'Allowed:', allowedOrigins);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
@@ -490,11 +482,10 @@ app.post('/api/track-click', async (req, res) => {
     
     // Handle admin user_id (convert 'admin' to null)
     const userId = (user_id === 'admin' || user_id === null) ? null : user_id;
-    
     // Insert click tracking
     const [result] = await promisePool.query(
-      'INSERT INTO website_analytics (page, action, user_id) VALUES (?, ?, ?)',
-      [page, action, userId]
+      'INSERT INTO website_analytics (page, action, user_id, timestamp) VALUES (?, ?, ?, NOW())',
+      [page, action, userId, new Date()]
     );
     
     res.json({ message: 'Click tracked successfully' });
