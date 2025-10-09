@@ -20,8 +20,6 @@ const allowedOrigins = [
   'https://www.nsvfinserv.com',
   'https://nsvfinserv.com',
   'http://localhost:5173',
-  // Allow Vercel preview deployments
-  /^https:\/\/.*\.vercel\.app$/
 ];
 
 const isAllowedByRule = (origin) => {
