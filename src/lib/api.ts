@@ -63,9 +63,10 @@ export const regulatoryAPI = {
   getAll: () => apiFetch('/regulatory-updates'),
 };
 
+// src/lib/api.ts
 export const loanAPI = {
   apply: (payload: any) =>
-    apiFetch('/loan-applications', {
+    apiFetch('/loan-applications', {            // <-- not /loan/apply
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -78,6 +79,7 @@ export const loanAPI = {
       body: JSON.stringify({ status }),
     }),
 };
+
 
 /** Lightweight analytics/track */
 export const trackAPI = {
