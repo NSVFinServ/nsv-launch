@@ -547,6 +547,40 @@ app.get('/api/analytics', async (req, res) => {
   }
 });
 
+// -------------------- Loan Applications --------------------
+app.post('/api/loan-applications', async (req, res) => {
+  try {
+    const { name, email, phone, amount, purpose } = req.body || {};
+
+    if (!name || !email || !phone || !amount) {
+      console.warn('Loan application missing fields:', req.body);
+      return res
+        .status(400)
+        .json({ ok: false, error: 'Missing required fields' });
+    }
+
+    // Example DB insert if you have MySQL
+    await promisePool.execute(
+      'INSERT INTO loan_applications (name, email, phone, amount, purpose) VALUES (?, ?, ?, ?, ?)',
+      [name, email, phone, amount, purpose || '']
+    );
+
+    console.log('✅ Loan application stored for:', name);
+    return res.status(201).json({ ok: true, message: 'Application received' });
+  } catch (err) {
+    console.error('❌ Loan application error:', err);
+    return res.status(500).json({ ok: false, error: 'Database error' });
+  }
+});
+
+// Optional alias for backwards compatibility
+app.post('/api/loan/apply', (req, res) => {
+  // Forward to same logic
+  req.url = '/api/loan-applications';
+  app.handle(req, res);
+});
+
+
 // 12. Get Dashboard Statistics
 app.get('/api/dashboard-stats', async (req, res) => {
   try {
