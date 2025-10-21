@@ -26,14 +26,20 @@
   min-width: 100%;
   box-sizing: border-box;
   position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
 }
 
 .slide img {
-  width: 100%;
+  max-width: 100%;
   height: auto;
-  max-height: 600px;
+  max-height: 500px;
   object-fit: contain;
   border-radius: 12px;
+  object-position: center;
+  display: block;
 }
 
 .slide-overlay {
