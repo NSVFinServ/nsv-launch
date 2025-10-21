@@ -38,7 +38,6 @@ const allowedOriginList = [
   'https://www.nsvfinserv.com',
   'https://nsvfinserv.com',
   'http://localhost:5173',
-  'https://nsvfinserv-api.onrender.com',
 ];
 
 const allowedOriginsSet = new Set(allowedOriginList);
