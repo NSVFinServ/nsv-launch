@@ -57,7 +57,7 @@ const EventBanner: React.FC = () => {
     return (
       <section className="event-banner">
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Recent Events</h1>
-        <div className="flex justify-center items-center h-64">
+        <div className="flex justify-center items-center h-64 md:h-96">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
       </section>
@@ -94,6 +94,7 @@ const EventBanner: React.FC = () => {
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.src = '/src/components/images/event1.jpg'; // Fallback image
+                  target.style.objectFit='contain';
                 }}
               />
               <div className="slide-overlay">
