@@ -9,6 +9,7 @@ const path = require('path');
 const otpGenerator = require('otp-generator');
 
 const app = express();
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const PORT = process.env.PORT || 10000;
 
 // 1) Trust proxy (Render/HTTPS)
