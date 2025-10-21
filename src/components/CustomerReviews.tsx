@@ -54,7 +54,7 @@ const CustomerReviews = () => {
     setIsSubmitting(true);
     
     try {
-      const response = await reviewsAPI.submit({
+      const response = await reviewsAPI.create({
         name: reviewForm.name,
         email: reviewForm.email,
         phone: reviewForm.phone,
