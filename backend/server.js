@@ -39,24 +39,7 @@ const allowedOriginList = [
   'https://nsvfinserv.com',
   'http://localhost:5173',
 ];
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOriginList.has(normalize(origin))) {
-      callback(null, true);
-    } else {
-      console.warn('Blocked CORS for:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true,
-}));
 
-// ✅ 3) Body parser (for JSON)
-app.use(express.json());
-
-// ✅ 4) Serve uploads folder (AFTER CORS)
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const allowedOriginsSet = new Set(allowedOriginList);
 
 const corsOptions = {
