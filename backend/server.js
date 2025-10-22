@@ -327,6 +327,103 @@ app.post('/api/signup', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+// ---------- Admin guard (uses your existing admin token shape) ----------
+const isAdmin = (req, res, next) => {
+  // Your admin login issues token with { userId: 'admin' }
+  if (req?.user?.userId === 'admin') return next();
+  return res.status(403).json({ error: 'admin_only' });
+};
+
+// ---------- Admin: View one user ----------
+app.get('/api/admin/users/:id', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await promisePool.query(
+      'SELECT id, name, email, phone, created_at, updated_at FROM users WHERE id = ? LIMIT 1',
+      [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error('Admin view user error:', err);
+    return res.status(500).json({ error: 'failed_to_get_user' });
+  }
+});
+
+// ---------- Admin: Edit/Update user (name/email/phone and optional password reset) ----------
+app.put('/api/admin/users/:id', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, phone, newPassword } = req.body || {};
+
+    // Ensure user exists
+    const [existing] = await promisePool.query('SELECT id FROM users WHERE id = ? LIMIT 1', [id]);
+    if (existing.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    // Enforce unique email/phone if provided
+    if (email || phone) {
+      const [dup] = await promisePool.query(
+        'SELECT id FROM users WHERE (email = ? OR phone = ?) AND id <> ? LIMIT 1',
+        [email || null, phone || null, id]
+      );
+      if (dup.length > 0) {
+        return res.status(400).json({ error: 'Email or phone already in use by another user' });
+      }
+    }
+
+    // Build dynamic update set
+    const fields = [];
+    const params = [];
+
+    if (typeof name === 'string' && name.trim()) { fields.push('name = ?'); params.push(name.trim()); }
+    if (typeof email === 'string' && email.trim()) { fields.push('email = ?'); params.push(email.trim().toLowerCase()); }
+    if (typeof phone === 'string' && phone.trim()) { fields.push('phone = ?'); params.push(phone.trim()); }
+
+    // Optional password reset
+    if (typeof newPassword === 'string' && newPassword.length >= 6) {
+      const hash = await bcrypt.hash(newPassword, 10);
+      fields.push('password_hash = ?');
+      params.push(hash);
+    }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    fields.push('updated_at = NOW()');
+    const sql = `UPDATE users SET ${fields.join(', ')} WHERE id = ?`;
+    params.push(id);
+    await promisePool.query(sql, params);
+
+    // Return the updated user (without password hash)
+    const [updated] = await promisePool.query(
+      'SELECT id, name, email, phone, created_at, updated_at FROM users WHERE id = ? LIMIT 1',
+      [id]
+    );
+    return res.json({ message: 'User updated successfully', user: updated[0] });
+  } catch (err) {
+    console.error('Admin update user error:', err);
+    return res.status(500).json({ error: 'failed_to_update_user' });
+  }
+});
+
+// ---------- Admin: Delete user ----------
+app.delete('/api/admin/users/:id', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // (Optional) safeguard: prevent deleting special/system users
+    // if (String(id) === '1') return res.status(400).json({ error: 'Cannot delete system user' });
+
+    const [result] = await promisePool.query('DELETE FROM users WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'User not found' });
+
+    return res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('Admin delete user error:', err);
+    return res.status(500).json({ error: 'failed_to_delete_user' });
+  }
+});
 
 // 2. User Login
 app.post('/api/login', async (req, res) => {
