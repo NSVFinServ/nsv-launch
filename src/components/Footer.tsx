@@ -58,8 +58,8 @@ const Footer = () => {
               <div className="flex items-start space-x-3">
                 <MapPin className="w-4 h-4 text-white-400 mt-1" />
                 <span className="text-gray-300">
-                  123 Business Center, Financial District,<br />
-                  Mumbai - 400001, Maharashtra
+                  27-16-31/2a , sri krishna nagar colony,neredmet,<br />
+                  Secunderabad - 500056, Telangana
                 </span>
               </div>
             </div>
