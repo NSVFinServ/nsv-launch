@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const mysql = require('mysql2/promise');
+const mysql = require('mysql2');
 const multer = require('multer');
 const path = require('path');
 const otpGenerator = require('otp-generator');
@@ -130,7 +130,7 @@ const pool = mysql.createPool({
   idleTimeout: 300000,
   supportBigNumbers: true,
   bigNumberStrings: true
-});
+}).promise();
 
 // Create a promise-based wrapper for the pool
 const promisePool = pool.promise();
