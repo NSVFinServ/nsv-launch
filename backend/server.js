@@ -105,7 +105,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
     else cb(new Error('Only image files are allowed'), false);
@@ -1252,173 +1252,236 @@ app.delete('/api/admin/testimonial-videos/:id', authenticateToken, (req, res) =>
 // Events API endpoints
 
 // Public: Get active events
-app.get('/api/events', (req, res) => {
-  const query = 'SELECT * FROM events WHERE is_active = TRUE ORDER BY display_order ASC, created_at DESC';
-  
-  pool.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching events:', err);
-      return res.status(500).json({ error: 'Failed to fetch events' });
-    }
-    res.json(results);
-  });
+app.get("/api/events", async (req, res) => {
+  try {
+    const query = `
+      SELECT id, title, description, image_url, event_date, display_order,
+             is_active, created_at, updated_at
+      FROM events
+      WHERE is_active = TRUE
+      ORDER BY display_order ASC, created_at DESC
+    `;
+
+    const [results] = await pool.query(query);
+
+    // Normalize image URLs (if stored as /api/images/:id)
+    const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
+    const events = results.map(ev => ({
+      ...ev,
+      image_url: ev.image_url
+        ? ev.image_url.startsWith("http")
+          ? ev.image_url
+          : `${base}${ev.image_url.startsWith("/") ? "" : "/"}${ev.image_url}`
+        : null,
+    }));
+
+    res.json(events);
+  } catch (err) {
+    console.error("Error fetching events:", err);
+    res.status(500).json({ error: "Failed to fetch events" });
+  }
 });
 
-// Admin: Get all events
-app.get('/api/admin/events', authenticateToken, (req, res) => {
-  const query = 'SELECT * FROM events ORDER BY display_order ASC, created_at DESC';
-  
-  pool.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching all events:', err);
-      return res.status(500).json({ error: 'Failed to fetch events' });
-    }
-    res.json(results);
-  });
+
+// Admin: Get all events (including inactive)
+app.get("/api/admin/events", authenticateToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT id, title, description, image_url, event_date, display_order,
+             is_active, created_at, updated_at
+      FROM events
+      ORDER BY display_order ASC, created_at DESC
+    `;
+
+    const [results] = await pool.query(query);
+
+    const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
+    const events = results.map(ev => ({
+      ...ev,
+      image_url: ev.image_url
+        ? ev.image_url.startsWith("http")
+          ? ev.image_url
+          : `${base}${ev.image_url.startsWith("/") ? "" : "/"}${ev.image_url}`
+        : null,
+    }));
+
+    res.json(events);
+  } catch (err) {
+    console.error("Error fetching all events:", err);
+    res.status(500).json({ error: "Failed to fetch events" });
+  }
 });
 
 // Admin: Add new event
-app.post('/api/admin/events', authenticateToken, (req, res) => {
-  const { title, description, image_url, event_date, display_order } = req.body;
-  
-  if (!title || !image_url) {
-    return res.status(400).json({ error: 'Title and image URL are required' });
-  }
-  
-  const query = `INSERT INTO events 
-    (title, description, image_url, event_date, display_order) 
-    VALUES (?, ?, ?, ?, ?)`;
-  
-  pool.query(query, [title, description, image_url, event_date, display_order || 0], (err, result) => {
-    if (err) {
-      console.error('Error adding event:', err);
-      return res.status(500).json({ error: 'Failed to add event' });
-    }
-    res.status(201).json({ message: 'Event added successfully', id: result.insertId });
-  });
-});
+app.post(
+  "/api/admin/events",
+  authenticateToken,
+  uploadMemory.single("image"),
+  async (req, res) => {
+    try {
+      const { title, description, image_url, event_date, display_order, is_active } =
+        req.body;
 
-// Admin: Update event
-app.put('/api/admin/events/:id', authenticateToken, (req, res) => {
-  const { id } = req.params;
-  const { title, description, image_url, event_date, display_order, is_active } = req.body;
-  
-  const query = `UPDATE events SET 
-    title = ?, description = ?, image_url = ?, event_date = ?, 
-    display_order = ?, is_active = ?, updated_at = NOW() 
-    WHERE id = ?`;
-  
-  pool.query(query, [title, description, image_url, event_date, display_order, is_active, id], (err, result) => {
-    if (err) {
-      console.error('Error updating event:', err);
-      return res.status(500).json({ error: 'Failed to update event' });
-    }
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Event not found' });
-    }
-    
-    res.json({ message: 'Event updated successfully' });
-  });
-});
-
-// Admin: Update event with file upload
-app.put('/api/admin/events/:id/upload', authenticateToken, upload.single('image'), (req, res) => {
-  try {
-    const { id } = req.params;
-    const { title, description, image_url, event_date, display_order, is_active } = req.body;
-    
-    if (!title) {
-      return res.status(400).json({ error: 'Title is required' });
-    }
-    
-    let imageUrl = req.body.image_url || null;
-    
-    // If a new file was uploaded, use that
-    if (req.file) {
-      imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-    }
-    
-    const query = `UPDATE events SET 
-      title = ?, description = ?, image_url = ?, event_date = ?, 
-      display_order = ?, is_active = ?, updated_at = NOW() 
-      WHERE id = ?`;
-    
-    pool.query(query, [title, description, imageUrl, event_date, display_order, is_active, id], (err, result) => {
-      if (err) {
-        console.error('Error updating event:', err);
-        return res.status(500).json({ error: 'Failed to update event' });
+      if (!title) {
+        return res.status(400).json({ error: "Title is required" });
       }
-      
+
+      // Prefer uploaded file → store in DB; else use provided image_url (optional)
+      let finalImageUrl = image_url || null;
+      if (req.file) {
+        const { imageUrl } = await saveImageAndGetUrl(req.file, req);
+        finalImageUrl = imageUrl;
+      }
+      if (!finalImageUrl) {
+        // If you want to require an image, uncomment next line:
+        // return res.status(400).json({ error: "Image is required" });
+      }
+
+      const query = `INSERT INTO events
+        (title, description, image_url, event_date, display_order, is_active)
+        VALUES (?, ?, ?, ?, ?, ?)`;
+
+      const params = [
+        title,
+        description || null,
+        finalImageUrl,
+        event_date || null,
+        Number(display_order) || 0,
+        (is_active === "true" || is_active === true) ? 1 : 0,
+      ];
+
+      const [result] = await pool.query(query, params);
+      res
+        .status(201)
+        .json({ message: "Event added successfully", id: result.insertId, image_url: finalImageUrl });
+    } catch (err) {
+      console.error("Error adding event:", err);
+      res.status(500).json({ error: "Failed to add event" });
+    }
+  }
+);
+
+// ====== Admin: Update event (JSON OR multipart with 'image') ======
+app.put(
+  "/api/admin/events/:id",
+  authenticateToken,
+  uploadMemory.single("image"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        title,
+        description,
+        image_url, // optional fallback
+        event_date,
+        display_order,
+        is_active,
+      } = req.body;
+
+      if (!title) {
+        return res.status(400).json({ error: "Title is required" });
+      }
+
+      let finalImageUrl = image_url || null;
+      if (req.file) {
+        const { imageUrl } = await saveImageAndGetUrl(req.file, req);
+        finalImageUrl = imageUrl;
+      }
+
+      const query = `UPDATE events SET
+        title = ?, description = ?, image_url = ?, event_date = ?,
+        display_order = ?, is_active = ?, updated_at = NOW()
+        WHERE id = ?`;
+
+      const params = [
+        title,
+        description || null,
+        finalImageUrl,
+        event_date || null,
+        Number(display_order) || 0,
+        (is_active === "true" || is_active === true) ? 1 : 0,
+        id,
+      ];
+
+      const [result] = await pool.query(query, params);
       if (result.affectedRows === 0) {
-        return res.status(404).json({ error: 'Event not found' });
+        return res.status(404).json({ error: "Event not found" });
       }
-      
-      res.json({ 
-        message: 'Event updated successfully',
-        image_url: imageUrl
-      });
-    });
-  } catch (error) {
-    console.error('Error uploading event image:', error);
-    res.status(500).json({ error: 'Failed to upload event image' });
+
+      res.json({ message: "Event updated successfully", image_url: finalImageUrl });
+    } catch (err) {
+      console.error("Error updating event:", err);
+      res.status(500).json({ error: "Failed to update event" });
+    }
   }
-});
+);
 
-// Admin: Add new event with file upload
-app.post('/api/admin/events/upload', authenticateToken, upload.single('image'), (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
+// ====== (Optional) Keep a dedicated upload route if your UI uses it ======
+app.put(
+  "/api/admin/events/:id/upload",
+  authenticateToken,
+  uploadMemory.single("image"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { title, description, image_url, event_date, display_order, is_active } =
+        req.body;
 
-    const { title, description, event_date, display_order, is_active } = req.body;
-    
-    if (!title) {
-      return res.status(400).json({ error: 'Title is required' });
-    }
-    
-    // Construct the image URL
-    const image_url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-    
-    const query = `INSERT INTO events 
-      (title, description, image_url, event_date, display_order, is_active) 
-      VALUES (?, ?, ?, ?, ?, ?)`;
-    
-    pool.query(query, [title, description, image_url, event_date, display_order || 0, is_active === 'true' || is_active === true], (err, result) => {
-      if (err) {
-        console.error('Error adding event:', err);
-        return res.status(500).json({ error: 'Failed to add event' });
+      if (!title) {
+        return res.status(400).json({ error: "Title is required" });
       }
-      res.status(201).json({ 
-        message: 'Event added successfully', 
-        id: result.insertId,
-        image_url: image_url
-      });
-    });
-  } catch (error) {
-    console.error('Error uploading event image:', error);
-    res.status(500).json({ error: 'Failed to upload event image' });
-  }
-});
 
-// Admin: Delete event
-app.delete('/api/admin/events/:id', authenticateToken, (req, res) => {
+      let finalImageUrl = image_url || null;
+      if (req.file) {
+        const { imageUrl } = await saveImageAndGetUrl(req.file, req);
+        finalImageUrl = imageUrl;
+      }
+
+      const query = `UPDATE events SET
+        title = ?, description = ?, image_url = ?, event_date = ?,
+        display_order = ?, is_active = ?, updated_at = NOW()
+        WHERE id = ?`;
+
+      const params = [
+        title,
+        description || null,
+        finalImageUrl,
+        event_date || null,
+        Number(display_order) || 0,
+        (is_active === "true" || is_active === true) ? 1 : 0,
+        id,
+      ];
+
+      const [result] = await pool.query(query, params);
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      res.json({ message: "Event updated successfully", image_url: finalImageUrl });
+    } catch (error) {
+      console.error("Error uploading event image:", error);
+      res.status(500).json({ error: "Failed to upload event image" });
+    }
+  }
+);
+
+// ====== Admin: Delete event (unchanged) ======
+app.delete("/api/admin/events/:id", authenticateToken, (req, res) => {
   const { id } = req.params;
-  
-  const query = 'DELETE FROM events WHERE id = ?';
-  
+
+  const query = "DELETE FROM events WHERE id = ?";
+
   pool.query(query, [id], (err, result) => {
     if (err) {
-      console.error('Error deleting event:', err);
-      return res.status(500).json({ error: 'Failed to delete event' });
+      console.error("Error deleting event:", err);
+      return res.status(500).json({ error: "Failed to delete event" });
     }
-    
+
     if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Event not found' });
+      return res.status(404).json({ error: "Event not found" });
     }
-    
-    res.json({ message: 'Event deleted successfully' });
+
+    res.json({ message: "Event deleted successfully" });
   });
 });
 
