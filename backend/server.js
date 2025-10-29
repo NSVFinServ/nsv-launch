@@ -132,9 +132,6 @@ const pool = mysql.createPool({
   bigNumberStrings: true
 }).promise();
 
-// Create a promise-based wrapper for the pool
-const promisePool = pool.promise();
-
 // Test the connection pool
 pool.getConnection((err, connection) => {
   if (err) {
