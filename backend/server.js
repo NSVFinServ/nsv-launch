@@ -111,7 +111,6 @@ const upload = multer({
     else cb(new Error('Only image files are allowed'), false);
   }
 });
-app.use('/uploads', express.static('uploads'));
 // ---- Your DB pool + routes continue below (leave them as-is) ----
 
 // MySQL Connection Pool with proper configuration
