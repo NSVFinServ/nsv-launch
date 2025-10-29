@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const mysql = require('mysql2');
+const mysql = require('mysql2/promise');
 const multer = require('multer');
 const path = require('path');
 const otpGenerator = require('otp-generator');
@@ -130,7 +130,7 @@ const pool = mysql.createPool({
   idleTimeout: 300000,
   supportBigNumbers: true,
   bigNumberStrings: true
-}).promise();
+});
 
 // Test the connection pool
 pool.getConnection((err, connection) => {
@@ -237,13 +237,13 @@ const authenticateToken = (req, res, next) => {
 app.get('/api/test-db', async (req, res) => {
   try {
     // Test basic connection
-    const [result] = await promisePool.query('SELECT 1 as test');
+    const [result] = await pool.query('SELECT 1 as test');
     
     // Check if database exists
-    const [databases] = await promisePool.query('SHOW DATABASES LIKE "nsv"');
+    const [databases] = await pool.query('SHOW DATABASES LIKE "nsv"');
     
     // Check if tables exist
-    const [tables] = await promisePool.query('SHOW TABLES');
+    const [tables] = await pool.query('SHOW TABLES');
     
     res.json({
       message: 'Database connection successful',
@@ -297,7 +297,7 @@ app.post('/api/signup', async (req, res) => {
     const { name, email, password, phone } = req.body;
     
     // Check if user already exists
-    const [existingUser] = await promisePool.query(
+    const [existingUser] = await pool.query(
       'SELECT id FROM users WHERE email = ?',
       [email]
     );
@@ -310,7 +310,7 @@ app.post('/api/signup', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     
     // Insert user
-    const [result] = await promisePool.query(
+    const [result] = await pool.query(
       'INSERT INTO users (name, email, password_hash, phone) VALUES (?, ?, ?, ?)',
       [name, email, hashedPassword, phone]
     );
@@ -338,7 +338,7 @@ const isAdmin = (req, res, next) => {
 app.get('/api/admin/users/:id', authenticateToken, isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const [rows] = await promisePool.query(
+    const [rows] = await pool.query(
       'SELECT id, name, email, phone, created_at, updated_at FROM users WHERE id = ? LIMIT 1',
       [id]
     );
@@ -357,12 +357,12 @@ app.put('/api/admin/users/:id', authenticateToken, isAdmin, async (req, res) => 
     const { name, email, phone, newPassword } = req.body || {};
 
     // Ensure user exists
-    const [existing] = await promisePool.query('SELECT id FROM users WHERE id = ? LIMIT 1', [id]);
+    const [existing] = await pool.query('SELECT id FROM users WHERE id = ? LIMIT 1', [id]);
     if (existing.length === 0) return res.status(404).json({ error: 'User not found' });
 
     // Enforce unique email/phone if provided
     if (email || phone) {
-      const [dup] = await promisePool.query(
+      const [dup] = await pool.query(
         'SELECT id FROM users WHERE (email = ? OR phone = ?) AND id <> ? LIMIT 1',
         [email || null, phone || null, id]
       );
@@ -393,10 +393,10 @@ app.put('/api/admin/users/:id', authenticateToken, isAdmin, async (req, res) => 
     fields.push('updated_at = NOW()');
     const sql = `UPDATE users SET ${fields.join(', ')} WHERE id = ?`;
     params.push(id);
-    await promisePool.query(sql, params);
+    await pool.query(sql, params);
 
     // Return the updated user (without password hash)
-    const [updated] = await promisePool.query(
+    const [updated] = await pool.query(
       'SELECT id, name, email, phone, created_at, updated_at FROM users WHERE id = ? LIMIT 1',
       [id]
     );
@@ -415,7 +415,7 @@ app.delete('/api/admin/users/:id', authenticateToken, isAdmin, async (req, res) 
     // (Optional) safeguard: prevent deleting special/system users
     // if (String(id) === '1') return res.status(400).json({ error: 'Cannot delete system user' });
 
-    const [result] = await promisePool.query('DELETE FROM users WHERE id = ?', [id]);
+    const [result] = await pool.query('DELETE FROM users WHERE id = ?', [id]);
     if (result.affectedRows === 0) return res.status(404).json({ error: 'User not found' });
 
     return res.json({ message: 'User deleted successfully' });
@@ -441,7 +441,7 @@ app.post('/api/login', async (req, res) => {
     }
     
     // Find user
-    const [users] = await promisePool.query(
+    const [users] = await pool.query(
       'SELECT * FROM users WHERE email = ?',
       [email]
     );
@@ -478,7 +478,7 @@ app.post('/api/referral', async (req, res) => {
     const { referrer_id, referred_name, referred_email, referred_phone } = req.body;
     
     // Insert referral
-    const [result] = await promisePool.query(
+    const [result] = await pool.query(
       'INSERT INTO referrals (referrer_id, referred_name, referred_email, referred_phone) VALUES (?, ?, ?, ?)',
       [referrer_id, referred_name, referred_email, referred_phone]
     );
@@ -507,7 +507,7 @@ const createLoanApplication = async (req, res) => {
     }
 
     // Insert into table with columns: user_id, service_id, amount, ask_expert_id (nullable)
-    await promisePool.execute(
+    await pool.execute(
       'INSERT INTO loan_applications (user_id, service_id, amount, ask_expert_id) VALUES (?, ?, ?, ?)',
       [user_id, service_id, amount, ask_expert_id ?? null]
     );
@@ -530,7 +530,7 @@ app.post('/api/loan-application', createLoanApplication);
 // 5. Get Services
 app.get('/api/services', async (req, res) => {
   try {
-    const [services] = await promisePool.query('SELECT * FROM services');
+    const [services] = await pool.query('SELECT * FROM services');
     res.json(services);
   } catch (error) {
     console.error('Get services error:', error);
@@ -541,7 +541,7 @@ app.get('/api/services', async (req, res) => {
 // 6. Get All Users (for admin view)
 app.get('/api/users', async (req, res) => {
   try {
-    const [users] = await promisePool.query('SELECT id, name, email, phone, created_at FROM users');
+    const [users] = await pool.query('SELECT id, name, email, phone, created_at FROM users');
     res.json(users);
   } catch (error) {
     console.error('Get users error:', error);
@@ -552,7 +552,7 @@ app.get('/api/users', async (req, res) => {
 // 7. Get All Referrals (for admin view)
 app.get('/api/referrals', async (req, res) => {
   try {
-    const [referrals] = await promisePool.query(`
+    const [referrals] = await pool.query(`
       SELECT 
         r.*, 
         u.name as referrer_name,
@@ -572,7 +572,7 @@ app.get('/api/referrals', async (req, res) => {
 // 8. Get All Loan Applications (for admin view)
 app.get('/api/loan-applications', async (req, res) => {
   try {
-    const [applications] = await promisePool.query(`
+    const [applications] = await pool.query(`
       SELECT la.*, u.name as user_name, u.email as user_email, s.name as service_name
       FROM loan_applications la
       JOIN users u ON la.user_id = u.id
@@ -590,7 +590,7 @@ app.post('/api/ask-expert', async (req, res) => {
   try {
     const { user_id, question } = req.body;
     
-    const [result] = await promisePool.query(
+    const [result] = await pool.query(
       'INSERT INTO ask_expert (user_id, question) VALUES (?, ?)',
       [user_id, question]
     );
@@ -624,8 +624,8 @@ app.post('/api/track-click', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Missing required fields: page, action' });
     }
 
-    // TODO: persist to DB if desired (use promisePool)
-    // await promisePool.execute('INSERT INTO analytics (page, action, user_id, meta) VALUES (?,?,?,?)',
+    // TODO: persist to DB if desired (use pool)
+    // await pool.execute('INSERT INTO analytics (page, action, user_id, meta) VALUES (?,?,?,?)',
     //   [page, action, userId, JSON.stringify(meta)]);
 
     return res.status(200).json({ ok: true });
@@ -639,7 +639,7 @@ app.post('/api/track-click', async (req, res) => {
 // 11. Get Website Analytics
 app.get('/api/analytics', async (req, res) => {
   try {
-    const [analytics] = await promisePool.query(`
+    const [analytics] = await pool.query(`
       SELECT 
         page,
         action,
@@ -661,20 +661,20 @@ app.get('/api/analytics', async (req, res) => {
 // 12. Get Dashboard Statistics
 app.get('/api/dashboard-stats', async (req, res) => {
   try {
-    const [userStats] = await promisePool.query('SELECT COUNT(*) as total_users FROM users');
-    const [referralStats] = await promisePool.query('SELECT COUNT(*) as total_referrals FROM referrals');
-    const [applicationStats] = await promisePool.query('SELECT COUNT(*) as total_applications FROM loan_applications');
-    const [recentUsers] = await promisePool.query(`
+    const [userStats] = await pool.query('SELECT COUNT(*) as total_users FROM users');
+    const [referralStats] = await pool.query('SELECT COUNT(*) as total_referrals FROM referrals');
+    const [applicationStats] = await pool.query('SELECT COUNT(*) as total_applications FROM loan_applications');
+    const [recentUsers] = await pool.query(`
       SELECT COUNT(*) as recent_users 
       FROM users 
       WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
     `);
-    const [recentApplications] = await promisePool.query(`
+    const [recentApplications] = await pool.query(`
       SELECT COUNT(*) as recent_applications 
       FROM loan_applications 
       WHERE submitted_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
     `);
-    const [totalClicks] = await promisePool.query('SELECT COUNT(*) as total_clicks FROM website_analytics');
+    const [totalClicks] = await pool.query('SELECT COUNT(*) as total_clicks FROM website_analytics');
     
     res.json({
       totalUsers: userStats[0].total_users,
@@ -695,7 +695,7 @@ app.post('/api/check-email', async (req, res) => {
   try {
     const { email } = req.body;
 
-    const [users] = await promisePool.query('SELECT id FROM users WHERE email = ?', [email]);
+    const [users] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
     
     res.json({ 
       exists: users.length > 0,
@@ -712,7 +712,7 @@ app.post('/api/check-phone', async (req, res) => {
   try {
     const { phone } = req.body;
 
-    const [users] = await promisePool.query('SELECT id FROM users WHERE phone = ?', [phone]);
+    const [users] = await pool.query('SELECT id FROM users WHERE phone = ?', [phone]);
     
     res.json({ 
       exists: users.length > 0,
@@ -730,7 +730,7 @@ app.post('/api/forgot-password', async (req, res) => {
     const { email, method = 'email' } = req.body;
     
     // Get user info (email already verified to exist by frontend)
-    const [users] = await promisePool.query(
+    const [users] = await pool.query(
       'SELECT id, name, email, phone FROM users WHERE email = ?',
       [email]
     );
@@ -742,7 +742,7 @@ app.post('/api/forgot-password', async (req, res) => {
       const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       
       // Store reset token in database
-      await promisePool.query(
+      await pool.query(
         'INSERT INTO password_resets (email, token, expires_at) VALUES (?, ?, ?)',
         [email, resetToken, new Date(Date.now() + 15 * 60 * 1000)] // 15 minutes
       );
@@ -787,7 +787,7 @@ app.post('/api/forgot-password-otp', async (req, res) => {
     const { phone } = req.body;
     
     // Get user info (phone already verified to exist by frontend)
-    const [users] = await promisePool.query(
+    const [users] = await pool.query(
       'SELECT id, name, email, phone FROM users WHERE phone = ?',
       [phone]
     );
@@ -859,7 +859,7 @@ app.post('/api/verify-otp', async (req, res) => {
     const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     
     // Store reset token in database
-    await promisePool.query(
+    await pool.query(
       'INSERT INTO password_resets (email, token, expires_at) VALUES (?, ?, ?)',
       [storedData.email, resetToken, new Date(Date.now() + 15 * 60 * 1000)]
     );
@@ -883,7 +883,7 @@ app.post('/api/reset-password', async (req, res) => {
     const { token, newPassword } = req.body;
     
     // Verify the token exists and is not expired
-    const [resetRecords] = await promisePool.query(
+    const [resetRecords] = await pool.query(
       'SELECT * FROM password_resets WHERE token = ? AND used = FALSE AND expires_at > NOW()',
       [token]
     );
@@ -898,13 +898,13 @@ app.post('/api/reset-password', async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update user's password
-    await promisePool.query(
+    await pool.query(
       'UPDATE users SET password_hash = ? WHERE email = ?',
       [hashedPassword, resetRecord.email]
     );
     
     // Mark token as used
-    await promisePool.query(
+    await pool.query(
       'UPDATE password_resets SET used = TRUE WHERE token = ?',
       [token]
     );
@@ -944,7 +944,7 @@ app.post('/api/reviews', async (req, res) => {
     }
 
     // 1) Find user by email
-    const [users] = await promisePool.query(
+    const [users] = await pool.query(
       'SELECT id FROM users WHERE email = ? LIMIT 1',
       [email]
     );
@@ -954,7 +954,7 @@ app.post('/api/reviews', async (req, res) => {
     const userId = users[0].id;
 
     // 2) Get latest loan application (join services to get loan type/name)
-    const [apps] = await promisePool.query(
+    const [apps] = await pool.query(
       `
         SELECT la.amount, s.name AS service_name
         FROM loan_applications la
@@ -970,7 +970,7 @@ app.post('/api/reviews', async (req, res) => {
     const loan_amount = apps.length ? apps[0].amount       : null;
 
     // 3) Insert review into your actual columns (no email column)
-    const [result] = await promisePool.query(
+    const [result] = await pool.query(
       `
         INSERT INTO customer_reviews
           (user_id, name, location, phone, rating, loan_type, loan_amount, review_text, is_approved, status)
@@ -1073,7 +1073,7 @@ app.post('/api/eligibility-submission', async (req, res) => {
       return res.status(400).json({ error: 'Name, phone, email, and salary are required' });
     }
     
-    const [result] = await promisePool.query(
+    const [result] = await pool.query(
       `INSERT INTO eligibility_submissions 
        (name, phone, email, monthly_salary, existing_emi, age, employment_type, 
         interest_rate, desired_tenure_years, eligible_loan_amount, affordable_emi) 
@@ -1095,7 +1095,7 @@ app.post('/api/eligibility-submission', async (req, res) => {
 // Admin: Get all eligibility submissions
 app.get('/api/admin/eligibility', authenticateToken, async (req, res) => {
   try {
-    const [submissions] = await promisePool.query(
+    const [submissions] = await pool.query(
       'SELECT * FROM eligibility_submissions ORDER BY created_at DESC'
     );
     res.json(submissions);
@@ -1115,7 +1115,7 @@ app.put('/api/admin/eligibility/:id', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid status' });
     }
     
-    const [result] = await promisePool.query(
+    const [result] = await pool.query(
       'UPDATE eligibility_submissions SET status = ? WHERE id = ?',
       [status, id]
     );
@@ -1141,7 +1141,7 @@ app.put('/api/admin/loan-applications/:id', authenticateToken, async (req, res) 
       return res.status(400).json({ error: 'Invalid status' });
     }
     
-    const [result] = await promisePool.query(
+    const [result] = await pool.query(
       'UPDATE loan_applications SET status = ? WHERE id = ?',
       [status, id]
     );
@@ -1719,7 +1719,7 @@ app.put('/api/admin/referrals/:id', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid status. Must be pending, accepted, or rejected.' });
     }
     
-    const [result] = await promisePool.query(
+    const [result] = await pool.query(
       'UPDATE referrals SET status = ? WHERE id = ?',
       [status, id]
     );
@@ -1740,7 +1740,7 @@ app.delete('/api/admin/referrals/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    const [result] = await promisePool.query(
+    const [result] = await pool.query(
       'DELETE FROM referrals WHERE id = ?',
       [id]
     );
@@ -1761,7 +1761,7 @@ app.delete('/api/admin/loan-applications/:id', authenticateToken, async (req, re
   try {
     const { id } = req.params;
     
-    const [result] = await promisePool.query(
+    const [result] = await pool.query(
       'DELETE FROM loan_applications WHERE id = ?',
       [id]
     );
@@ -1782,7 +1782,7 @@ app.delete('/api/admin/eligibility/:id', authenticateToken, async (req, res) => 
   try {
     const { id } = req.params;
     
-    const [result] = await promisePool.query(
+    const [result] = await pool.query(
       'DELETE FROM eligibility_submissions WHERE id = ?',
       [id]
     );
