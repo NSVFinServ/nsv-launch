@@ -1003,16 +1003,14 @@ app.post('/api/reviews', async (req, res) => {
 
 
 // Admin: Get all reviews (including unapproved) - Protected endpoint
-app.get('/api/admin/reviews', authenticateToken, (req, res) => {
-  const query = 'SELECT * FROM customer_reviews ORDER BY created_at DESC';
-  
-  pool.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching all reviews:', err);
-      return res.status(500).json({ error: 'Failed to fetch reviews' });
-    }
+app.get('/api/admin/reviews', authenticateToken, async (req, res) => {
+  try {
+    const [results] = await pool.query('SELECT * FROM reviews ORDER BY created_at DESC');
     res.json(results);
-  });
+  } catch (err) {
+    console.error('Error fetching all reviews:', err);
+    res.status(500).json({ error: 'Failed to fetch reviews' });
+  }
 });
 
 // Admin: Update review status - Protected endpoint
@@ -1172,16 +1170,22 @@ app.get('/api/testimonial-videos', (req, res) => {
 });
 
 // Admin: Get all testimonial videos
-app.get('/api/admin/testimonial-videos', authenticateToken, (req, res) => {
-  const query = 'SELECT * FROM testimonial_videos ORDER BY display_order ASC, created_at DESC';
-  
-  pool.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching all testimonial videos:', err);
-      return res.status(500).json({ error: 'Failed to fetch testimonial videos' });
-    }
+app.get('/api/admin/testimonial-videos', authenticateToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT *
+      FROM testimonial_videos
+      ORDER BY display_order ASC, created_at DESC
+    `;
+
+    // Promise-style query — no callback
+    const [results] = await pool.query(query);
+
     res.json(results);
-  });
+  } catch (err) {
+    console.error('Error fetching all testimonial videos:', err);
+    res.status(500).json({ error: 'Failed to fetch testimonial videos' });
+  }
 });
 
 // Admin: Add new testimonial video
@@ -1501,16 +1505,22 @@ app.get('/api/regulatory-updates', (req, res) => {
 });
 
 // Admin: Get all regulatory updates
-app.get('/api/admin/regulatory-updates', authenticateToken, (req, res) => {
-  const query = 'SELECT * FROM regulatory_updates ORDER BY category, display_order ASC, created_at DESC';
-  
-  pool.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching all regulatory updates:', err);
-      return res.status(500).json({ error: 'Failed to fetch regulatory updates' });
-    }
+app.get('/api/admin/regulatory-updates', authenticateToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT *
+      FROM regulatory_updates
+      ORDER BY category, display_order ASC, created_at DESC
+    `;
+
+    // Promise-based query — no callback
+    const [results] = await pool.query(query);
+
     res.json(results);
-  });
+  } catch (err) {
+    console.error('Error fetching all regulatory updates:', err);
+    res.status(500).json({ error: 'Failed to fetch regulatory updates' });
+  }
 });
 
 // Admin: Add new regulatory update
