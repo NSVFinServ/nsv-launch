@@ -15,7 +15,7 @@ const Hero = () => {
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Content */}
           <div className="space-y-8">
-            <div>
+            <div data-aos="fade-right" data-aos-delay="100">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-600 leading-tight">
                 Let's find you
                 <span className="text-gray-900"> the Best Loan</span>
@@ -26,7 +26,7 @@ const Hero = () => {
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-4" data-aos="fade-up" data-aos-delay="300">
               <a href="#services">
               <button className="bg-gray-900 text-white px-8 py-4 rounded-lg hover:bg-gray-500 transition-all duration-200 font-semibold flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl">
                 <span>View Services</span>
@@ -39,7 +39,7 @@ const Hero = () => {
             </div>
 
             {/* Trust indicators */}
-            <div className="flex items-center space-x-4 text-sm text-gray-500">
+            <div className="flex items-center space-x-4 text-sm text-gray-500" data-aos="fade-up" data-aos-delay="500">
               <div className="flex items-center space-x-1">
                 <Shield className="w-4 h-4 text-green-600" />
                 <span>RBI Registered</span>
@@ -56,7 +56,7 @@ const Hero = () => {
           </div>
 
           {/* Visual/Stats */}
-          <div className="relative">
+          <div className="relative" data-aos="fade-left" data-aos-delay="200">
             <div className="bg-white rounded-2xl shadow-2xl p-8">
               <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">
                 Why Choose NSV Finance?
@@ -65,7 +65,7 @@ const Hero = () => {
                 {stats.map((stat, index) => {
                   const IconComponent = stat.icon;
                   return (
-                    <div key={index} className="text-center">
+                    <div key={index} className="text-center" data-aos="zoom-in" data-aos-delay={300 + (index * 100)}>
                       <div className="bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
                         <IconComponent className="w-8 h-8 text-gray-700" />
                       </div>
