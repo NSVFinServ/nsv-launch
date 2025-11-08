@@ -40,7 +40,7 @@ const Partners = () => {
         {/* Partner Logos */}
         <div className="bg-white rounded-xl shadow-sm p-4 sm:p-8" data-aos="fade-up" data-aos-delay="100">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-8">
-            {partners.map((partner, index) => (
+            {partnerLogos.map((partner, index) => (
               <div 
                 key={index} 
                 className="flex flex-col items-center justify-center p-2 sm:p-4 hover:bg-blue-50 rounded-lg transition-colors duration-200"
