@@ -61,7 +61,7 @@ const Calculators = () => {
 
   return (
     <section id="calculators" className="py-16 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" data-aos="fade-left" data-aos-delay="200">
         {/* Header */}
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
@@ -74,7 +74,7 @@ const Calculators = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex flex-wrap justify-center mb-8 bg-white rounded-lg p-2 shadow-sm max-w-2xl mx-auto">
+        <div className="flex flex-wrap justify-center mb-8 bg-white rounded-lg p-2 shadow-sm max-w-2xl mx-auto" data-aos="zoom-in" data-aos-delay={300}>
           {calculatorTypes.map((calc) => {
             const IconComponent = calc.icon;
             return (
@@ -97,7 +97,7 @@ const Calculators = () => {
           })}
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden" data-aos="fade-right" data-aos-delay="100">
           {/* ----- Normal EMI ----- */}
           {activeCalculator === 'emi' && (
             <div className="p-8">
