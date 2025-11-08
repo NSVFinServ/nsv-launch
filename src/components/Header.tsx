@@ -29,7 +29,7 @@ const Header = () => {
     { name: 'Loan Products', href: '#services' },
     { name: 'Calculators', href: '#calculators' },
     { name: 'Contact', href: '#contact' },
-    { name: 'Blogs', href: '#blogs' },
+    { name: 'Blogs', href: '/blogs' },
   ];
 
   return (
@@ -68,14 +68,24 @@ const Header = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             {navigation.map((item) => (
-              <a
-                key={item.name}
-                href={item.href}
-                className="text-gray-700 hover:text-gray-400 transition-colors duration-200 font-medium"
-              >
-                {item.name}
-              </a>
-            ))}
+  item.href.startsWith('#') ? (
+    <a
+      key={item.name}
+      href={item.href}
+      className="text-gray-700 hover:text-gray-400 transition-colors duration-200 font-medium"
+    >
+      {item.name}
+    </a>
+  ) : (
+    <Link
+      key={item.name}
+      to={item.href}
+      className="text-gray-700 hover:text-gray-400 transition-colors duration-200 font-medium"
+    >
+      {item.name}
+    </Link>
+  )
+))}
             {user ? (
              <div className="flex items-center space-x-4">
                 <div className="relative">
