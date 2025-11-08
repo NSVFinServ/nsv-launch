@@ -13,7 +13,6 @@ import Footer from './components/Footer';
 import LeadPopup from './components/LeadPopup';
 import BlogsPage from './components/BlogsPage';
 import ReferralBanner from './components/ReferralBanner';
-import EventBanner from './components/EventBanner';
 
 import { trackPageView } from './lib/analytics';
 
@@ -37,7 +36,6 @@ function App() {
 
       <Hero />
       <Benefits />
-      <EventBanner />
       <Services />
       <EligibilityCalculator />
       <Calculators />
