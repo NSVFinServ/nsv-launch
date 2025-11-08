@@ -74,7 +74,7 @@ const Calculators = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex flex-wrap justify-center mb-8 bg-white rounded-lg p-2 shadow-sm max-w-2xl mx-auto" data-aos="zoom-in" data-aos-delay={300}>
+        <div className="flex flex-wrap justify-center mb-8 bg-white rounded-lg p-2 shadow-sm max-w-2xl mx-auto" data-aos="fade-right" data-aos-delay="100">
           {calculatorTypes.map((calc) => {
             const IconComponent = calc.icon;
             return (
@@ -97,7 +97,7 @@ const Calculators = () => {
           })}
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden" data-aos="fade-right" data-aos-delay="100">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden" data-aos="zoom-in" data-aos-delay={300}>
           {/* ----- Normal EMI ----- */}
           {activeCalculator === 'emi' && (
             <div className="p-8">
