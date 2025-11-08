@@ -78,7 +78,7 @@ const Services = () => {
         </div>
 
         {/* Loan Cards */}
-        <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-8 mb-16" data-aos="zoom-in" data-aos-delay={300 + (index * 100)}>
+        <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-8 mb-16" data-aos="zoom-in" data-aos-delay={300}>
           {loanTypes.map((loan, index) => (
             <div
               key={index}
