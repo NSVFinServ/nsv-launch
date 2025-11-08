@@ -160,7 +160,7 @@ const EligibilityCalculator = () => {
   return (
     <section id="eligibility-calculator" className="py-16 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
+        <div className="text-center mb-12" data-aos="fade-left" data-aos-delay="200">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
             Check Your Loan Eligibility
           </h2>
@@ -169,7 +169,7 @@ const EligibilityCalculator = () => {
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border" data-aos="zoom-in" data-aos-delay={300}>
           <div className="p-8">
             <div className="grid lg:grid-cols-2 gap-8">
               {/* Input Form */}
