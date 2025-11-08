@@ -25,7 +25,7 @@ const Partners = () => {
     <section className="py-12 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-10" data-aos="fade-up">
           <div className="flex items-center justify-center space-x-2 mb-3">
             <Award className="w-6 h-6 text-gray-600" />
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
@@ -38,10 +38,15 @@ const Partners = () => {
         </div>
 
         {/* Partner Logos */}
-        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-8">
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-8" data-aos="fade-up" data-aos-delay="100">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-8">
-            {partnerLogos.map((partner, index) => (
-              <div key={index} className="flex flex-col items-center justify-center p-2 sm:p-4 hover:bg-blue-50 rounded-lg transition-colors duration-200">
+            {partners.map((partner, index) => (
+              <div 
+                key={index} 
+                className="flex flex-col items-center justify-center p-2 sm:p-4 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                data-aos="zoom-in"
+                data-aos-delay={100 * (index + 1)}
+              >
                 <div className="bg-white p-3 sm:p-4 rounded-full shadow-sm mb-2 sm:mb-3">
                   <img 
                     src={partner.logo} 
@@ -57,7 +62,7 @@ const Partners = () => {
 
         {/* Trust Indicators */}
         <div className="mt-6 sm:mt-10 grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-          <div className="bg-white p-6 rounded-lg shadow-sm flex items-start space-x-4">
+          <div className="bg-white p-6 rounded-lg shadow-sm flex items-start space-x-4" data-aos="fade-up" data-aos-delay="200">
             <div className="bg-gray-100 p-3 rounded-full">
               <Shield className="w-6 h-6 text-gray-700" />
             </div>
@@ -67,7 +72,7 @@ const Partners = () => {
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-lg shadow-sm flex items-start space-x-4">
+          <div className="bg-white p-6 rounded-lg shadow-sm flex items-start space-x-4" data-aos="fade-up" data-aos-delay="300">
             <div className="bg-gray-100 p-3 rounded-full">
               <Shield className="w-6 h-6 text-gray-700" />
             </div>
@@ -77,7 +82,7 @@ const Partners = () => {
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-lg shadow-sm flex items-start space-x-4">
+          <div className="bg-white p-6 rounded-lg shadow-sm flex items-start space-x-4" data-aos="fade-up" data-aos-delay="400">
             <div className="bg-gray-100 p-3 rounded-full">
               <Shield className="w-6 h-6 text-gray-700" />
             </div>
