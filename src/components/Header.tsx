@@ -57,7 +57,7 @@ const Header = () => {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div className="flex-shrink-0" data-aos="fade-right">
+          <div className="flex items-center space-x-2" data-aos="fade-right">
             <img src={logo} alt="NSV Finance Logo" className="w-10 h-10 rounded-full object-cover" />
             <div>
               <h1 className="text-xl font-bold text-gray-900">NSV FinServ</h1>
