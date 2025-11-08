@@ -11,6 +11,7 @@ import AdminDashboardEnhanced from './components/admin/AdminDashboardClean.tsx';
 import TestEmailPage from './components/test-email/page.tsx';
 import EmailDisplayPage from './components/email-display/page.tsx';
 import TermsConditions from './components/terms-conditions/page.tsx';
+import BlogsPage from './components/BlogsPage.tsx';
 import PrivacyPolicy from './components/privacy-policy/page.tsx';
 import './index.css';
 import ReferralPage from './components/referalpage/page.tsx';
