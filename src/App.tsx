@@ -11,6 +11,7 @@ import CustomerReviews from './components/CustomerReviews';
 import TestimonialVideos from './components/TestimonialVideos';
 import Footer from './components/Footer';
 import LeadPopup from './components/LeadPopup';
+import BlogsPage from './components/BlogsPage';
 import ReferralBanner from './components/ReferralBanner';
 import EventBanner from './components/EventBanner';
 
