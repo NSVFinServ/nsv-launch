@@ -15,16 +15,6 @@ import PrivacyPolicy from './components/privacy-policy/page.tsx';
 import './index.css';
 import ReferralPage from './components/referalpage/page.tsx';
 import AdminDashboardClean from './components/admin/AdminDashboardClean.tsx';
-import AOS from 'aos';
-import 'aos/dist/aos.css';
-
-// Initialize AOS
-AOS.init({
-  duration: 800,
-  easing: 'ease-in-out',
-  once: false,
-  mirror: false,
-});
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
