@@ -35,7 +35,7 @@ const Header = () => {
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
       {/* Top contact bar */}
-      <div className="bg-gray-800 text-white py-2 px-4">
+      <div className="bg-gray-800 text-white py-2 px-4" data-aos="fade-right">
         <div className="max-w-7xl mx-auto flex justify-between items-center text-sm">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-1">
@@ -57,7 +57,7 @@ const Header = () => {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div className="flex items-center space-x-2">
+          <div className="flex-shrink-0" data-aos="fade-right">
             <img src={logo} alt="NSV Finance Logo" className="w-10 h-10 rounded-full object-cover" />
             <div>
               <h1 className="text-xl font-bold text-gray-900">NSV FinServ</h1>
@@ -66,7 +66,7 @@ const Header = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-8" data-aos="fade-down" data-aos-delay="100">
             {navigation.map((item) => (
   item.href.startsWith('#') ? (
     <a
@@ -87,7 +87,7 @@ const Header = () => {
   )
 ))}
             {user ? (
-             <div className="flex items-center space-x-4">
+             <div className="flex items-center space-x-4" data-aos="fade-left" data-aos-delay="200">
                 <div className="relative">
                   <button
                     onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -128,7 +128,7 @@ const Header = () => {
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden">
+          <div className="md:hidden" data-aos="fade-left" data-aos-delay="200">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="text-gray-700 hover:text-gray-400"
@@ -140,7 +140,7 @@ const Header = () => {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="md:hidden border-t border-gray-200">
+          <div className="md:hidden border-t border-gray-200" data-aos="fade-left" data-aos-delay="200">
             <div className="py-4 space-y-2">
               {navigation.map((item) => (
                 <a
