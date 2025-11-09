@@ -6,7 +6,7 @@ import { Input } from "../../components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card"
 import logo from '../../components/logo.png'
 import { API_BASE_URL, withApi } from '@/lib/api.ts';
-import { sendLoginNotification } from '@/lib/loginNotification';
+import { sendLoginNotification } from '@/lib/LoginNotification';
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
