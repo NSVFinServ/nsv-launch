@@ -526,6 +526,8 @@ const createLoanApplication = async (req, res) => {
     return res.status(500).json({ ok: false, error: 'create_loan_failed' });
   }
 };
+app.post('/api/loan-application', createLoanApplication);
+
 
 // 5. Get Services
 app.get('/api/services', async (req, res) => {
