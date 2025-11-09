@@ -500,11 +500,12 @@ const createLoanApplication = async (req, res) => {
     const { user_id, service_id, amount, ask_expert_id } = req.body || {};
 
     // Basic validation
-    if (!user_id || !service_id || !amount) {
-      return res
-        .status(400)
-        .json({ ok: false, error: 'Missing required fields: user_id, service_id, amount' });
-    }
+   if (!service_id || !amount) {
+  return res
+    .status(400)
+    .json({ ok: false, error: 'Missing required fields: service_id, amount' });
+}
+
 
     // Insert into table with columns: user_id, service_id, amount, ask_expert_id (nullable)
     await promisePool.execute(
