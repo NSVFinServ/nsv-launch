@@ -35,10 +35,10 @@ function App() {
       )}
 
       <Hero />
-      <Benefits />
       <Services />
       <EligibilityCalculator />
       <Calculators />
+      <Benefits />
       <Partners />
       <RegulatoryUpdates />
       <CustomerReviews />
