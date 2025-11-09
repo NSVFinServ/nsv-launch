@@ -495,28 +495,49 @@ app.post('/api/referral', async (req, res) => {
 
 // 4. Submit Loan Application
 // -------------------- Loan Applications (singular) --------------------
+// 4. Submit Loan Application
 const createLoanApplication = async (req, res) => {
   try {
-    const { user_id, service_id, amount, ask_expert_id } = req.body || {};
+    const {
+      user_id,
+      service_id,
+      amount,
+      ask_expert_id,
+      full_name,
+      email,
+      phone,
+      aadhaar,
+      pan,
+      purpose,
+    } = req.body || {};
 
-    // Basic validation (only service_id and amount are required now)
+    // Basic validation (only service_id and amount are required)
     if (!service_id || !amount) {
-      return res
-        .status(400)
-        .json({ ok: false, error: 'Missing required fields: service_id, amount' });
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing required fields: service_id, amount',
+      });
     }
 
-    // ✅ Prevent undefined values from breaking SQL query
+    // ✅ Ensure no undefined values break SQL query
     const safeValues = [
       user_id ?? null,
       service_id ?? null,
-      amount ?? null,
       ask_expert_id ?? null,
+      amount ?? null,
+      full_name ?? null,
+      email ?? null,
+      phone ?? null,
+      aadhaar ?? null,
+      pan ?? null,
+      purpose ?? null,
     ];
 
-    // Insert data safely
+    // ✅ Updated insert query to include all fields
     await promisePool.execute(
-      'INSERT INTO loan_applications (user_id, service_id, amount, ask_expert_id) VALUES (?, ?, ?, ?)',
+      `INSERT INTO loan_applications 
+       (user_id, service_id, ask_expert_id, amount, full_name, email, phone, aadhaar, pan, purpose)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       safeValues
     );
 
@@ -526,8 +547,9 @@ const createLoanApplication = async (req, res) => {
     return res.status(500).json({ ok: false, error: 'create_loan_failed' });
   }
 };
-app.post('/api/loan-application', createLoanApplication);
 
+// ✅ Keep route after function
+app.post('/api/loan-application', createLoanApplication);
 
 // 5. Get Services
 app.get('/api/services', async (req, res) => {
