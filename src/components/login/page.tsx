@@ -37,12 +37,23 @@ export default function LoginPage() {
       const data = await response.json()
 
       if (response.ok) {
-        // Store token in localStorage
-        localStorage.setItem('token', data.token)
-        localStorage.setItem('user', JSON.stringify(data.user))
-        
-        // Show success message
-        alert(`Welcome back, ${data.user.name}!`)
+  // Store token in localStorage
+  localStorage.setItem('token', data.token)
+  localStorage.setItem('user', JSON.stringify(data.user))
+  
+  // ✅ SEND TELEGRAM NOTIFICATION (non-blocking)
+  sendLoginNotification({
+    name: data.user.name,
+    email: data.user.email || email,
+    phone: data.user.phone || data.user.mobile,
+    id: data.user.id || data.user._id,
+  }).catch((err) => {
+    // Silent fail - don't block login if notification fails
+    console.error('Notification error:', err);
+  });
+  
+  // Show success message
+  alert(`Welcome back, ${data.user.name}!`)
         
         // Check if admin login
         if (email === 'admin@nsvfinserv.com' && password === 'password') {
