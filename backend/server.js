@@ -499,10 +499,8 @@ app.post('/api/referral', async (req, res) => {
 const createLoanApplication = async (req, res) => {
   try {
     const {
-      user_id,
       service_id,
       amount,
-      ask_expert_id,
       full_name,
       email,
       phone,
@@ -515,15 +513,13 @@ const createLoanApplication = async (req, res) => {
     if (!service_id || !amount) {
       return res.status(400).json({
         ok: false,
-        error: 'Missing required fields: service_id, amount',
+        error: "Missing required fields: service_id, amount",
       });
     }
 
-    // ✅ Ensure no undefined values break SQL query
+    // ✅ Clean values (no user_id or ask_expert_id)
     const safeValues = [
-      user_id ?? null,
       service_id ?? null,
-      ask_expert_id ?? null,
       amount ?? null,
       full_name ?? null,
       email ?? null,
@@ -533,23 +529,24 @@ const createLoanApplication = async (req, res) => {
       purpose ?? null,
     ];
 
-    // ✅ Updated insert query to include all fields
+    // ✅ Insert query without user_id or ask_expert_id
     await promisePool.execute(
       `INSERT INTO loan_applications 
-       (user_id, service_id, ask_expert_id, amount, full_name, email, phone, aadhaar, pan, purpose)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (service_id, amount, full_name, email, phone, aadhaar, pan, purpose)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       safeValues
     );
 
-    return res.status(201).json({ ok: true, message: 'Application received' });
+    return res.status(201).json({ ok: true, message: "Application received" });
   } catch (err) {
-    console.error('❌ Loan application error:', err);
-    return res.status(500).json({ ok: false, error: 'create_loan_failed' });
+    console.error("❌ Loan application error:", err);
+    return res.status(500).json({ ok: false, error: "create_loan_failed" });
   }
 };
 
-// ✅ Keep route after function
-app.post('/api/loan-application', createLoanApplication);
+// ✅ Route
+app.post("/api/loan-application", createLoanApplication);
+
 
 // 5. Get Services
 app.get('/api/services', async (req, res) => {
