@@ -509,7 +509,6 @@ const setTenure = (raw) => {
                 </div>
               </div>
             </div>
-          )}
 
           {/* ----- Term Insurance ----- */}
           {activeCalculator === 'term' && (
@@ -582,7 +581,6 @@ const setTenure = (raw) => {
 
 
         </div>
-      </div>
     </section>
   );
 };
