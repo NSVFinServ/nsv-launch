@@ -36,7 +36,7 @@ const Benefits = () => {
           {/* Two-column layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
             {/* Left side: Text */}
-            <div className="text-left flex flex-col justify-center" data-aos="fade-right" data-aos-delay="100">
+            <div className="text-left flex flex-col justify-center" data-aos="fade-right" data-aos-delay="50">
               <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
                 What Makes NSV Finserv Different?
               </h3>
@@ -94,7 +94,7 @@ const Benefits = () => {
                   key={index}
                   className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100"
                   data-aos="zoom-in" 
-                  data-aos-delay={300 + (index * 100)}
+                  data-aos-delay={100 + (index * 75)}
                 >
                   <div className="flex items-start justify-between">
                     {/* Text Left */}
