@@ -64,7 +64,7 @@ const Services = () => {
   ];
 
   return (
-    <section id="services" className="py-16 bg-white" data-aos="fade-left" data-aos-delay="100">
+    <section id="services" className="py-16 bg-white" data-aos="fade-left" data-aos-delay="50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
@@ -78,11 +78,12 @@ const Services = () => {
         </div>
 
         {/* Loan Cards */}
-        <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-8 mb-16" data-aos="zoom-in" data-aos-delay={300}>
+        <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-8 mb-16">
           {loanTypes.map((loan, index) => (
             <div
               key={index}
               className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 group relative"
+               data-aos="zoom-in" data-aos-delay={150+(index * 50)}
             >
               {/* Badge */}
               {loan.badge && (
