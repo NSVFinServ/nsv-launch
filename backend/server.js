@@ -499,18 +499,25 @@ const createLoanApplication = async (req, res) => {
   try {
     const { user_id, service_id, amount, ask_expert_id } = req.body || {};
 
-    // Basic validation
-   if (!service_id || !amount) {
-  return res
-    .status(400)
-    .json({ ok: false, error: 'Missing required fields: service_id, amount' });
-}
+    // Basic validation (only service_id and amount are required now)
+    if (!service_id || !amount) {
+      return res
+        .status(400)
+        .json({ ok: false, error: 'Missing required fields: service_id, amount' });
+    }
 
+    // ✅ Prevent undefined values from breaking SQL query
+    const safeValues = [
+      user_id ?? null,
+      service_id ?? null,
+      amount ?? null,
+      ask_expert_id ?? null,
+    ];
 
-    // Insert into table with columns: user_id, service_id, amount, ask_expert_id (nullable)
+    // Insert data safely
     await promisePool.execute(
       'INSERT INTO loan_applications (user_id, service_id, amount, ask_expert_id) VALUES (?, ?, ?, ?)',
-      [user_id, service_id, amount, ask_expert_id ?? null]
+      safeValues
     );
 
     return res.status(201).json({ ok: true, message: 'Application received' });
@@ -519,14 +526,6 @@ const createLoanApplication = async (req, res) => {
     return res.status(500).json({ ok: false, error: 'create_loan_failed' });
   }
 };
-
-// Primary route (keep this)
-app.post('/api/loan-application', createLoanApplication);
-
-// // Back-compat aliases (so existing frontends won’t 404)
-// app.post('/api/loan/apply', createLoanApplication);
-// app.post('/api/loan-applications', createLoanApplication);
-
 
 // 5. Get Services
 app.get('/api/services', async (req, res) => {
