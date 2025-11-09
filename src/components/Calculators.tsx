@@ -331,59 +331,163 @@ const setTenure = (raw) => {
                 <div className="space-y-6">
                   <h3 className="text-2xl font-bold text-gray-900 mb-6">Moratorium EMI Calculator</h3>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Loan Amount (₹)</label>
-                    <input
-                      type="range"
-                      min="100000"
-                      max="10000000"
-                      step="50000"
-                      value={moratoriumInputs.loanAmount}
-                      onChange={(e) => setMoratoriumInputs({ ...moratoriumInputs, loanAmount: parseInt(e.target.value) })}
-                      className="w-full"
-                    />
-                    <div className="text-center mt-1">₹{(moratoriumInputs.loanAmount / 100000).toFixed(1)}L</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Interest Rate (% p.a.)</label>
-                    <input
-                      type="range"
-                      min="6"
-                      max="18"
-                      step="0.1"
-                      value={moratoriumInputs.interestRate}
-                      onChange={(e) => setMoratoriumInputs({ ...moratoriumInputs, interestRate: parseFloat(e.target.value) })}
-                      className="w-full"
-                    />
-                    <div className="text-center mt-1">{moratoriumInputs.interestRate}%</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Total Tenure (Months)</label>
-                    <input
-                      type="range"
-                      min="12"
-                      max="360"
-                      step="12"
-                      value={moratoriumInputs.tenure}
-                      onChange={(e) => setMoratoriumInputs({ ...moratoriumInputs, tenure: parseInt(e.target.value) })}
-                      className="w-full"
-                    />
-                    <div className="text-center mt-1">{moratoriumInputs.tenure / 12} Years</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Moratorium Period (Months)</label>
-                    <input
-                      type="range"
-                      min="3"
-                      max="24"
-                      step="3"
-                      value={moratoriumInputs.moratoriumMonths}
-                      onChange={(e) => setMoratoriumInputs({ ...moratoriumInputs, moratoriumMonths: parseInt(e.target.value) })}
-                      className="w-full"
-                    />
-                    <div className="text-center mt-1">{moratoriumInputs.moratoriumMonths} Months</div>
-                  </div>
-                </div>
+                  {/* Loan Amount */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">Loan Amount (₹)</label>
+  <div className="flex items-center gap-4">
+    <input
+      type="range"
+      min={100000}
+      max={10000000}
+      step={50000}
+      value={moratoriumInputs.loanAmount}
+      onChange={(e) =>
+        setMoratoriumInputs((s: any) => ({
+          ...s,
+          loanAmount: clamp(parseInt(e.target.value), 100000, 10000000),
+        }))
+      }
+      className="w-full"
+    />
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        className="pl-7 pr-3 py-2 w-40 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        value={moratoriumInputs.loanAmount.toLocaleString('en-IN')}
+        onChange={(e) =>
+          setMoratoriumInputs((s: any) => {
+            const v = parseNum(e.target.value, s.loanAmount);
+            return {
+              ...s,
+              loanAmount: Math.round(clamp(v, 100000, 10000000) / 50000) * 50000,
+            };
+          })
+        }
+        placeholder="1,00,000"
+      />
+    </div>
+  </div>
+  <div className="text-center mt-1">₹{(moratoriumInputs.loanAmount / 100000).toFixed(1)}L</div>
+</div>
+
+{/* Interest Rate */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">Interest Rate (% p.a.)</label>
+  <div className="flex items-center gap-4">
+    <input
+      type="range"
+      min={6}
+      max={18}
+      step={0.1}
+      value={moratoriumInputs.interestRate}
+      onChange={(e) =>
+        setMoratoriumInputs((s: any) => ({
+          ...s,
+          interestRate: Math.round(clamp(parseFloat(e.target.value), 6, 18) * 10) / 10,
+        }))
+      }
+      className="w-full"
+    />
+    <div className="relative">
+      <input
+        type="number"
+        step={0.1}
+        min={6}
+        max={18}
+        className="pr-10 pl-3 py-2 w-28 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        value={moratoriumInputs.interestRate}
+        onChange={(e) =>
+          setMoratoriumInputs((s: any) => ({
+            ...s,
+            interestRate: Math.round(clamp(parseNum(e.target.value, s.interestRate), 6, 18) * 10) / 10,
+          }))
+        }
+      />
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
+    </div>
+  </div>
+  <div className="text-center mt-1">{moratoriumInputs.interestRate}%</div>
+</div>
+
+{/* Total Tenure (Months) */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">Total Tenure (Months)</label>
+  <div className="flex items-center gap-4">
+    <input
+      type="range"
+      min={12}
+      max={360}
+      step={12}
+      value={moratoriumInputs.tenure}
+      onChange={(e) =>
+        setMoratoriumInputs((s: any) => ({
+          ...s,
+          tenure: clamp(parseInt(e.target.value), 12, 360),
+        }))
+      }
+      className="w-full"
+    />
+    <div className="relative">
+      <input
+        type="number"
+        step={12}
+        min={12}
+        max={360}
+        className="pl-3 pr-14 py-2 w-40 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        value={moratoriumInputs.tenure}
+        onChange={(e) =>
+          setMoratoriumInputs((s: any) => ({
+            ...s,
+            tenure: Math.round(clamp(parseNum(e.target.value, s.tenure), 12, 360) / 12) * 12,
+          }))
+        }
+      />
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">months</span>
+    </div>
+  </div>
+  <div className="text-center mt-1">{moratoriumInputs.tenure / 12} Years</div>
+</div>
+
+{/* Moratorium Period (Months) */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">Moratorium Period (Months)</label>
+  <div className="flex items-center gap-4">
+    <input
+      type="range"
+      min={3}
+      max={24}
+      step={3}
+      value={moratoriumInputs.moratoriumMonths}
+      onChange={(e) =>
+        setMoratoriumInputs((s: any) => ({
+          ...s,
+          moratoriumMonths: clamp(parseInt(e.target.value), 3, 24),
+        }))
+      }
+      className="w-full"
+    />
+    <div className="relative">
+      <input
+        type="number"
+        step={3}
+        min={3}
+        max={24}
+        className="pl-3 pr-10 py-2 w-36 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        value={moratoriumInputs.moratoriumMonths}
+        onChange={(e) =>
+          setMoratoriumInputs((s: any) => ({
+            ...s,
+            moratoriumMonths: Math.round(clamp(parseNum(e.target.value, s.moratoriumMonths), 3, 24) / 3) * 3,
+          }))
+        }
+      />
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">mo</span>
+    </div>
+  </div>
+  <div className="text-center mt-1">{moratoriumInputs.moratoriumMonths} Months</div>
+</div>
 
                 {/* Results */}
                 <div className="rounded-xl p-6" style={{ backgroundColor: 'rgba(46, 46, 46, 0.1)' }}>
