@@ -45,7 +45,7 @@ const Partners = () => {
                 key={index} 
                 className="flex flex-col items-center justify-center p-2 sm:p-4 hover:bg-blue-50 rounded-lg transition-colors duration-200"
                 data-aos="zoom-in"
-                data-aos-delay={100 * (index + 1)}
+                data-aos-delay={ 50 * index }
               >
                 <div className="bg-white p-3 sm:p-4 rounded-full shadow-sm mb-2 sm:mb-3">
                   <img 
