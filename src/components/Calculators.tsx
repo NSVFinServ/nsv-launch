@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { IndianRupee, Clock, Shield } from 'lucide-react';
 
 const Calculators = () => {
-  const [activeCalculator, setActiveCalculator] = useState('emi');
+  const [activeCalculator, setActiveCalculator] = useState<'emi' | 'moratorium' | 'term'>('emi');
 
   // ---- Normal EMI ----
   const [emiInputs, setEmiInputs] = useState({ loanAmount: 1000000, interestRate: 9.5, tenure: 240 });
@@ -20,7 +20,9 @@ const Calculators = () => {
   const totalInterest = totalAmount - emiInputs.loanAmount;
 
   // ---- Moratorium EMI ----
-  const [moratoriumInputs, setMoratoriumInputs] = useState({ loanAmount: 1000000, interestRate: 9.5, tenure: 240, moratoriumMonths: 6 });
+  const [moratoriumInputs, setMoratoriumInputs] = useState({
+    loanAmount: 1000000, interestRate: 9.5, tenure: 240, moratoriumMonths: 6
+  });
 
   const calculateMoratoriumEMI = (principal: number, rate: number, tenure: number, moratoriumMonths: number) => {
     const monthlyRate = rate / (12 * 100);
@@ -30,14 +32,19 @@ const Calculators = () => {
     const emiMo = (compoundedPrincipal * monthlyRate * Math.pow(1 + monthlyRate, remainingTenure)) /
       (Math.pow(1 + monthlyRate, remainingTenure) - 1);
     return Math.round(emiMo);
-    };
+  };
+
   const moratoriumEMI = calculateMoratoriumEMI(
     moratoriumInputs.loanAmount,
     moratoriumInputs.interestRate,
     moratoriumInputs.tenure,
     moratoriumInputs.moratoriumMonths
   );
-  const regularEMI = calculateEMI(moratoriumInputs.loanAmount, moratoriumInputs.interestRate, moratoriumInputs.tenure);
+  const regularEMI = calculateEMI(
+    moratoriumInputs.loanAmount,
+    moratoriumInputs.interestRate,
+    moratoriumInputs.tenure
+  );
 
   // ---- Term Insurance (simplified) ----
   const [termInputs, setTermInputs] = useState({ age: 30, coverAmount: 5000000, term: 20 });
@@ -51,50 +58,44 @@ const Calculators = () => {
   };
   const termPremium = calculateTermPremium(termInputs.age, termInputs.coverAmount, termInputs.term);
 
-
   // ---- Tabs ----
   const calculatorTypes = [
     { id: 'emi', name: 'Normal EMI', icon: IndianRupee },
     { id: 'moratorium', name: 'Moratorium EMI', icon: Clock },
     { id: 'term', name: 'Term Insurance EMI', icon: Shield },
-  ];
-  // Helpers (place inside App component, above return)
-const INR = new Intl.NumberFormat('en-IN');
+  ] as const;
 
-const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
-const parseNum = (v, fallback = 0) => {
-  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[, ]/g, ''));
-  return Number.isFinite(n) ? n : fallback;
-};
+  // Helpers
+  const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
+  const parseNum = (v: string | number, fallback = 0) => {
+    const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[, ]/g, ''));
+    return Number.isFinite(n) ? n : fallback;
+  };
 
-// Centralized setters to keep slider & input linked
-const setLoanAmount = (raw) => {
-  const min = 100000, max = 10000000, step = 50000;
-  let v = Math.round(clamp(parseNum(raw, emiInputs.loanAmount), min, max) / step) * step;
-  setEmiInputs({ ...emiInputs, loanAmount: v });
-};
-const setInterestRate = (raw) => {
-  const min = 6, max = 18;
-  let v = clamp(parseNum(raw, emiInputs.interestRate), min, max);
-  // keep one decimal like the slider
-  v = Math.round(v * 10) / 10;
-  setEmiInputs({ ...emiInputs, interestRate: v });
-};
-const setTenure = (raw) => {
-  const min = 12, max = 360, step = 12;
-  let v = Math.round(clamp(parseNum(raw, emiInputs.tenure), min, max) / step) * step;
-  setEmiInputs({ ...emiInputs, tenure: v });
-};
-
+  // Centralized setters for Normal EMI (optional to keep)
+  const setLoanAmount = (raw: string | number) => {
+    const min = 100000, max = 10000000, step = 50000;
+    let v = Math.round(clamp(parseNum(raw, emiInputs.loanAmount), min, max) / step) * step;
+    setEmiInputs({ ...emiInputs, loanAmount: v });
+  };
+  const setInterestRate = (raw: string | number) => {
+    const min = 6, max = 18;
+    let v = clamp(parseNum(raw, emiInputs.interestRate), min, max);
+    v = Math.round(v * 10) / 10;
+    setEmiInputs({ ...emiInputs, interestRate: v });
+  };
+  const setTenure = (raw: string | number) => {
+    const min = 12, max = 360, step = 12;
+    let v = Math.round(clamp(parseNum(raw, emiInputs.tenure), min, max) / step) * step;
+    setEmiInputs({ ...emiInputs, tenure: v });
+  };
 
   return (
     <section id="calculators" className="py-16 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" data-aos="fade-left" data-aos-delay="100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" data-aos="fade-left" data-aos-delay={100}>
         {/* Header */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Loan EMI Calculators
-          </h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Loan EMI Calculators</h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
             Quickly calculate your loan EMIs, compare repayment options with and without moratorium,
             and estimate your term insurance premium.
@@ -102,7 +103,7 @@ const setTenure = (raw) => {
         </div>
 
         {/* Tabs */}
-        <div className="flex flex-wrap justify-center mb-8 bg-white rounded-lg p-2 shadow-sm max-w-2xl mx-auto" data-aos="fade-right" data-aos-delay="75">
+        <div className="flex flex-wrap justify-center mb-8 bg-white rounded-lg p-2 shadow-sm max-w-2xl mx-auto" data-aos="fade-right" data-aos-delay={75}>
           {calculatorTypes.map((calc) => {
             const IconComponent = calc.icon;
             return (
@@ -110,13 +111,9 @@ const setTenure = (raw) => {
                 key={calc.id}
                 onClick={() => setActiveCalculator(calc.id)}
                 className={`flex items-center space-x-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
-                  activeCalculator === calc.id
-                    ? 'text-white shadow-md'
-                    : 'text-gray-700 hover:bg-gray-50'
+                  activeCalculator === calc.id ? 'text-white shadow-md' : 'text-gray-700 hover:bg-gray-50'
                 }`}
-                style={{
-                  backgroundColor: activeCalculator === calc.id ? 'rgb(46, 46, 46)' : 'transparent'
-                }}
+                style={{ backgroundColor: activeCalculator === calc.id ? 'rgb(46, 46, 46)' : 'transparent' }}
               >
                 <IconComponent className="w-4 h-4" />
                 <span>{calc.name}</span>
@@ -127,181 +124,143 @@ const setTenure = (raw) => {
 
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden" data-aos="zoom-in" data-aos-delay={300}>
           {/* ----- Normal EMI ----- */}
-{activeCalculator === 'emi' && (
-           <div className="p-8">
-            <div className="grid lg:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">
-                  Normal Loan EMI Calculator
-                </h3>
+          {activeCalculator === 'emi' && (
+            <div className="p-8">
+              <div className="grid lg:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-6">Normal Loan EMI Calculator</h3>
 
-                {/* Loan Amount */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Loan Amount (₹)
-                  </label>
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="range"
-                      min={100000}
-                      max={10000000}
-                      step={50000}
-                      value={emiInputs.loanAmount}
-                      onChange={(e) =>
-                        setEmiInputs((s: any) => ({
-                          ...s,
-                          loanAmount: clamp(
-                            parseInt(e.target.value),
-                            100000,
-                            10000000
-                          ),
-                        }))
-                      }
-                      className="w-full"
-                    />
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                        ₹
-                      </span>
+                  {/* Loan Amount */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Loan Amount (₹)</label>
+                    <div className="flex items-center gap-4">
                       <input
-                        type="text"
-                        inputMode="numeric"
-                        className="pl-7 pr-3 py-2 w-40 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={emiInputs.loanAmount.toLocaleString("en-IN")}
+                        type="range"
+                        min={100000}
+                        max={10000000}
+                        step={50000}
+                        value={emiInputs.loanAmount}
                         onChange={(e) =>
-                          setEmiInputs((s: any) => {
-                            const v = parseNum(e.target.value, s.loanAmount);
-                            return {
-                              ...s,
-                              loanAmount:
-                                Math.round(
-                                  clamp(v, 100000, 10000000) / 50000
-                                ) * 50000,
-                            };
-                          })
+                          setEmiInputs((s: any) => ({
+                            ...s,
+                            loanAmount: clamp(parseInt(e.target.value), 100000, 10000000),
+                          }))
                         }
+                        className="w-full"
                       />
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className="pl-7 pr-3 py-2 w-40 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          value={emiInputs.loanAmount.toLocaleString('en-IN')}
+                          onChange={(e) =>
+                            setEmiInputs((s: any) => {
+                              const v = parseNum(e.target.value, s.loanAmount);
+                              return {
+                                ...s,
+                                loanAmount: Math.round(clamp(v, 100000, 10000000) / 50000) * 50000,
+                              };
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-sm text-gray-600 mt-1">
+                      <span>₹1L</span>
+                      <span className="font-medium">₹{(emiInputs.loanAmount / 100000).toFixed(1)}L</span>
+                      <span>₹1Cr</span>
                     </div>
                   </div>
-                  <div className="flex justify-between text-sm text-gray-600 mt-1">
-                    <span>₹1L</span>
-                    <span className="font-medium">
-                      ₹{(emiInputs.loanAmount / 100000).toFixed(1)}L
-                    </span>
-                    <span>₹1Cr</span>
-                  </div>
-                </div>
 
-                {/* Interest Rate */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Interest Rate (% p.a.)
-                  </label>
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="range"
-                      min={6}
-                      max={18}
-                      step={0.1}
-                      value={emiInputs.interestRate}
-                      onChange={(e) =>
-                        setEmiInputs((s: any) => ({
-                          ...s,
-                          interestRate:
-                            Math.round(
-                              clamp(parseFloat(e.target.value), 6, 18) * 10
-                            ) / 10,
-                        }))
-                      }
-                      className="w-full"
-                    />
-                    <div className="relative">
+                  {/* Interest Rate */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Interest Rate (% p.a.)</label>
+                    <div className="flex items-center gap-4">
                       <input
-                        type="number"
-                        step={0.1}
+                        type="range"
                         min={6}
                         max={18}
-                        className="pr-10 pl-3 py-2 w-28 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        step={0.1}
                         value={emiInputs.interestRate}
                         onChange={(e) =>
                           setEmiInputs((s: any) => ({
                             ...s,
-                            interestRate:
-                              Math.round(
-                                clamp(parseNum(e.target.value, s.interestRate),
-                                  6, 18
-                                ) * 10
-                              ) / 10,
+                            interestRate: Math.round(clamp(parseFloat(e.target.value), 6, 18) * 10) / 10,
                           }))
                         }
+                        className="w-full"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
-                        %
-                      </span>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step={0.1}
+                          min={6}
+                          max={18}
+                          className="pr-10 pl-3 py-2 w-28 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          value={emiInputs.interestRate}
+                          onChange={(e) =>
+                            setEmiInputs((s: any) => ({
+                              ...s,
+                              interestRate:
+                                Math.round(clamp(parseNum(e.target.value, s.interestRate), 6, 18) * 10) / 10,
+                            }))
+                          }
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-sm text-gray-600 mt-1">
+                      <span>6%</span>
+                      <span className="font-medium">{emiInputs.interestRate}%</span>
+                      <span>18%</span>
                     </div>
                   </div>
-                  <div className="flex justify-between text-sm text-gray-600 mt-1">
-                    <span>6%</span>
-                    <span className="font-medium">
-                      {emiInputs.interestRate}%
-                    </span>
-                    <span>18%</span>
-                  </div>
-                </div>
 
-                {/* Tenure */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Loan Tenure (Months)
-                  </label>
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="range"
-                      min={12}
-                      max={360}
-                      step={12}
-                      value={emiInputs.tenure}
-                      onChange={(e) =>
-                        setEmiInputs((s: any) => ({
-                          ...s,
-                          tenure: clamp(parseInt(e.target.value), 12, 360),
-                        }))
-                      }
-                      className="w-full"
-                    />
-                    <div className="relative">
+                  {/* Tenure */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Loan Tenure (Months)</label>
+                    <div className="flex items-center gap-4">
                       <input
-                        type="number"
-                        step={12}
+                        type="range"
                         min={12}
                         max={360}
-                        className="pl-3 pr-14 py-2 w-40 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        step={12}
                         value={emiInputs.tenure}
                         onChange={(e) =>
                           setEmiInputs((s: any) => ({
                             ...s,
-                            tenure:
-                              Math.round(
-                                clamp(parseNum(e.target.value, s.tenure), 12, 360) /
-                                  12
-                              ) * 12,
+                            tenure: clamp(parseInt(e.target.value), 12, 360),
                           }))
                         }
+                        className="w-full"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
-                        months
-                      </span>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step={12}
+                          min={12}
+                          max={360}
+                          className="pl-3 pr-14 py-2 w-40 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          value={emiInputs.tenure}
+                          onChange={(e) =>
+                            setEmiInputs((s: any) => ({
+                              ...s,
+                              tenure: Math.round(clamp(parseNum(e.target.value, s.tenure), 12, 360) / 12) * 12,
+                            }))
+                          }
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">months</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-sm text-gray-600 mt-1">
+                      <span>1 Year</span>
+                      <span className="font-medium">{Math.round(emiInputs.tenure / 12)} Years</span>
+                      <span>30 Years</span>
                     </div>
                   </div>
-                  <div className="flex justify-between text-sm text-gray-600 mt-1">
-                    <span>1 Year</span>
-                    <span className="font-medium">
-                      {Math.round(emiInputs.tenure / 12)} Years
-                    </span>
-                    <span>30 Years</span>
-                  </div>
                 </div>
-              </div>
 
                 {/* Results */}
                 <div className="rounded-xl p-6" style={{ backgroundColor: 'rgba(46, 46, 46, 0.1)' }}>
@@ -324,6 +283,7 @@ const setTenure = (raw) => {
               </div>
             </div>
           )}
+
           {/* ----- Moratorium EMI ----- */}
           {activeCalculator === 'moratorium' && (
             <div className="p-8">
@@ -332,162 +292,165 @@ const setTenure = (raw) => {
                   <h3 className="text-2xl font-bold text-gray-900 mb-6">Moratorium EMI Calculator</h3>
 
                   {/* Loan Amount */}
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-2">Loan Amount (₹)</label>
-  <div className="flex items-center gap-4">
-    <input
-      type="range"
-      min={100000}
-      max={10000000}
-      step={50000}
-      value={moratoriumInputs.loanAmount}
-      onChange={(e) =>
-        setMoratoriumInputs((s: any) => ({
-          ...s,
-          loanAmount: clamp(parseInt(e.target.value), 100000, 10000000),
-        }))
-      }
-      className="w-full"
-    />
-    <div className="relative">
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
-      <input
-        type="text"
-        inputMode="numeric"
-        className="pl-7 pr-3 py-2 w-40 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        value={moratoriumInputs.loanAmount.toLocaleString('en-IN')}
-        onChange={(e) =>
-          setMoratoriumInputs((s: any) => {
-            const v = parseNum(e.target.value, s.loanAmount);
-            return {
-              ...s,
-              loanAmount: Math.round(clamp(v, 100000, 10000000) / 50000) * 50000,
-            };
-          })
-        }
-        placeholder="1,00,000"
-      />
-    </div>
-  </div>
-  <div className="text-center mt-1">₹{(moratoriumInputs.loanAmount / 100000).toFixed(1)}L</div>
-</div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Loan Amount (₹)</label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min={100000}
+                        max={10000000}
+                        step={50000}
+                        value={moratoriumInputs.loanAmount}
+                        onChange={(e) =>
+                          setMoratoriumInputs((s: any) => ({
+                            ...s,
+                            loanAmount: clamp(parseInt(e.target.value), 100000, 10000000),
+                          }))
+                        }
+                        className="w-full"
+                      />
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className="pl-7 pr-3 py-2 w-40 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          value={moratoriumInputs.loanAmount.toLocaleString('en-IN')}
+                          onChange={(e) =>
+                            setMoratoriumInputs((s: any) => {
+                              const v = parseNum(e.target.value, s.loanAmount);
+                              return {
+                                ...s,
+                                loanAmount: Math.round(clamp(v, 100000, 10000000) / 50000) * 50000,
+                              };
+                            })
+                          }
+                          placeholder="1,00,000"
+                        />
+                      </div>
+                    </div>
+                    <div className="text-center mt-1">₹{(moratoriumInputs.loanAmount / 100000).toFixed(1)}L</div>
+                  </div>
 
-{/* Interest Rate */}
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-2">Interest Rate (% p.a.)</label>
-  <div className="flex items-center gap-4">
-    <input
-      type="range"
-      min={6}
-      max={18}
-      step={0.1}
-      value={moratoriumInputs.interestRate}
-      onChange={(e) =>
-        setMoratoriumInputs((s: any) => ({
-          ...s,
-          interestRate: Math.round(clamp(parseFloat(e.target.value), 6, 18) * 10) / 10,
-        }))
-      }
-      className="w-full"
-    />
-    <div className="relative">
-      <input
-        type="number"
-        step={0.1}
-        min={6}
-        max={18}
-        className="pr-10 pl-3 py-2 w-28 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        value={moratoriumInputs.interestRate}
-        onChange={(e) =>
-          setMoratoriumInputs((s: any) => ({
-            ...s,
-            interestRate: Math.round(clamp(parseNum(e.target.value, s.interestRate), 6, 18) * 10) / 10,
-          }))
-        }
-      />
-      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
-    </div>
-  </div>
-  <div className="text-center mt-1">{moratoriumInputs.interestRate}%</div>
-</div>
+                  {/* Interest Rate */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Interest Rate (% p.a.)</label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min={6}
+                        max={18}
+                        step={0.1}
+                        value={moratoriumInputs.interestRate}
+                        onChange={(e) =>
+                          setMoratoriumInputs((s: any) => ({
+                            ...s,
+                            interestRate: Math.round(clamp(parseFloat(e.target.value), 6, 18) * 10) / 10,
+                          }))
+                        }
+                        className="w-full"
+                      />
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step={0.1}
+                          min={6}
+                          max={18}
+                          className="pr-10 pl-3 py-2 w-28 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          value={moratoriumInputs.interestRate}
+                          onChange={(e) =>
+                            setMoratoriumInputs((s: any) => ({
+                              ...s,
+                              interestRate: Math.round(clamp(parseNum(e.target.value, s.interestRate), 6, 18) * 10) / 10,
+                            }))
+                          }
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
+                      </div>
+                    </div>
+                    <div className="text-center mt-1">{moratoriumInputs.interestRate}%</div>
+                  </div>
 
-{/* Total Tenure (Months) */}
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-2">Total Tenure (Months)</label>
-  <div className="flex items-center gap-4">
-    <input
-      type="range"
-      min={12}
-      max={360}
-      step={12}
-      value={moratoriumInputs.tenure}
-      onChange={(e) =>
-        setMoratoriumInputs((s: any) => ({
-          ...s,
-          tenure: clamp(parseInt(e.target.value), 12, 360),
-        }))
-      }
-      className="w-full"
-    />
-    <div className="relative">
-      <input
-        type="number"
-        step={12}
-        min={12}
-        max={360}
-        className="pl-3 pr-14 py-2 w-40 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        value={moratoriumInputs.tenure}
-        onChange={(e) =>
-          setMoratoriumInputs((s: any) => ({
-            ...s,
-            tenure: Math.round(clamp(parseNum(e.target.value, s.tenure), 12, 360) / 12) * 12,
-          }))
-        }
-      />
-      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">months</span>
-    </div>
-  </div>
-  <div className="text-center mt-1">{moratoriumInputs.tenure / 12} Years</div>
-</div>
+                  {/* Total Tenure (Months) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Total Tenure (Months)</label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min={12}
+                        max={360}
+                        step={12}
+                        value={moratoriumInputs.tenure}
+                        onChange={(e) =>
+                          setMoratoriumInputs((s: any) => ({
+                            ...s,
+                            tenure: clamp(parseInt(e.target.value), 12, 360),
+                          }))
+                        }
+                        className="w-full"
+                      />
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step={12}
+                          min={12}
+                          max={360}
+                          className="pl-3 pr-14 py-2 w-40 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          value={moratoriumInputs.tenure}
+                          onChange={(e) =>
+                            setMoratoriumInputs((s: any) => ({
+                              ...s,
+                              tenure: Math.round(clamp(parseNum(e.target.value, s.tenure), 12, 360) / 12) * 12,
+                            }))
+                          }
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">months</span>
+                      </div>
+                    </div>
+                    <div className="text-center mt-1">{moratoriumInputs.tenure / 12} Years</div>
+                  </div>
 
-{/* Moratorium Period (Months) */}
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-2">Moratorium Period (Months)</label>
-  <div className="flex items-center gap-4">
-    <input
-      type="range"
-      min={3}
-      max={24}
-      step={3}
-      value={moratoriumInputs.moratoriumMonths}
-      onChange={(e) =>
-        setMoratoriumInputs((s: any) => ({
-          ...s,
-          moratoriumMonths: clamp(parseInt(e.target.value), 3, 24),
-        }))
-      }
-      className="w-full"
-    />
-    <div className="relative">
-      <input
-        type="number"
-        step={3}
-        min={3}
-        max={24}
-        className="pl-3 pr-10 py-2 w-36 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        value={moratoriumInputs.moratoriumMonths}
-        onChange={(e) =>
-          setMoratoriumInputs((s: any) => ({
-            ...s,
-            moratoriumMonths: Math.round(clamp(parseNum(e.target.value, s.moratoriumMonths), 3, 24) / 3) * 3,
-          }))
-        }
-      />
-      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">mo</span>
-    </div>
-  </div>
-  <div className="text-center mt-1">{moratoriumInputs.moratoriumMonths} Months</div>
-</div>
+                  {/* Moratorium Period (Months) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Moratorium Period (Months)</label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min={3}
+                        max={24}
+                        step={3}
+                        value={moratoriumInputs.moratoriumMonths}
+                        onChange={(e) =>
+                          setMoratoriumInputs((s: any) => ({
+                            ...s,
+                            moratoriumMonths: clamp(parseInt(e.target.value), 3, 24),
+                          }))
+                        }
+                        className="w-full"
+                      />
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step={3}
+                          min={3}
+                          max={24}
+                          className="pl-3 pr-10 py-2 w-36 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          value={moratoriumInputs.moratoriumMonths}
+                          onChange={(e) =>
+                            setMoratoriumInputs((s: any) => ({
+                              ...s,
+                              moratoriumMonths: Math.round(
+                                clamp(parseNum(e.target.value, s.moratoriumMonths), 3, 24) / 3
+                              ) * 3,
+                            }))
+                          }
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">mo</span>
+                      </div>
+                    </div>
+                    <div className="text-center mt-1">{moratoriumInputs.moratoriumMonths} Months</div>
+                  </div>
+                </div>
 
                 {/* Results */}
                 <div className="rounded-xl p-6" style={{ backgroundColor: 'rgba(46, 46, 46, 0.1)' }}>
@@ -509,6 +472,7 @@ const setTenure = (raw) => {
                 </div>
               </div>
             </div>
+          )}  {/* <-- this )} was MISSING */}
 
           {/* ----- Term Insurance ----- */}
           {activeCalculator === 'term' && (
@@ -517,42 +481,121 @@ const setTenure = (raw) => {
                 <div className="space-y-6">
                   <h3 className="text-2xl font-bold text-gray-900 mb-6">Term Insurance EMI Calculator</h3>
 
+                  {/* Age */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Your Age</label>
-                    <input
-                      type="range"
-                      min="18"
-                      max="65"
-                      value={termInputs.age}
-                      onChange={(e) => setTermInputs({ ...termInputs, age: parseInt(e.target.value) })}
-                      className="w-full"
-                    />
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min={18}
+                        max={65}
+                        value={termInputs.age}
+                        onChange={(e) =>
+                          setTermInputs((s: any) => ({
+                            ...s,
+                            age: clamp(parseInt(e.target.value), 18, 65),
+                          }))
+                        }
+                        className="w-full"
+                      />
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={18}
+                          max={65}
+                          step={1}
+                          className="pl-3 pr-12 py-2 w-32 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          value={termInputs.age}
+                          onChange={(e) =>
+                            setTermInputs((s: any) => ({
+                              ...s,
+                              age: Math.round(clamp(parseNum(e.target.value, s.age), 18, 65)),
+                            }))
+                          }
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">yrs</span>
+                      </div>
+                    </div>
                     <div className="text-center mt-1">{termInputs.age} Years</div>
                   </div>
+
+                  {/* Cover Amount */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Cover Amount (₹)</label>
-                    <input
-                      type="range"
-                      min="1000000"
-                      max="50000000"
-                      step="500000"
-                      value={termInputs.coverAmount}
-                      onChange={(e) => setTermInputs({ ...termInputs, coverAmount: parseInt(e.target.value) })}
-                      className="w-full"
-                    />
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min={1_000_000}
+                        max={50_000_000}
+                        step={500_000}
+                        value={termInputs.coverAmount}
+                        onChange={(e) =>
+                          setTermInputs((s: any) => ({
+                            ...s,
+                            coverAmount: clamp(parseInt(e.target.value), 1_000_000, 50_000_000),
+                          }))
+                        }
+                        className="w-full"
+                      />
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className="pl-7 pr-3 py-2 w-44 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          value={termInputs.coverAmount.toLocaleString('en-IN')}
+                          onChange={(e) =>
+                            setTermInputs((s: any) => {
+                              const v = parseNum(e.target.value, s.coverAmount);
+                              return {
+                                ...s,
+                                coverAmount: Math.round(clamp(v, 1_000_000, 50_000_000) / 500_000) * 500_000,
+                              };
+                            })
+                          }
+                          placeholder="10,00,000"
+                        />
+                      </div>
+                    </div>
                     <div className="text-center mt-1">₹{(termInputs.coverAmount / 100000).toFixed(0)}L</div>
                   </div>
+
+                  {/* Policy Term (Years) */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Policy Term (Years)</label>
-                    <input
-                      type="range"
-                      min="5"
-                      max="30"
-                      step="5"
-                      value={termInputs.term}
-                      onChange={(e) => setTermInputs({ ...termInputs, term: parseInt(e.target.value) })}
-                      className="w-full"
-                    />
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min={5}
+                        max={30}
+                        step={5}
+                        value={termInputs.term}
+                        onChange={(e) =>
+                          setTermInputs((s: any) => ({
+                            ...s,
+                            term: clamp(parseInt(e.target.value), 5, 30),
+                          }))
+                        }
+                        className="w-full"
+                      />
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step={5}
+                          min={5}
+                          max={30}
+                          className="pl-3 pr-12 py-2 w-36 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          value={termInputs.term}
+                          onChange={(e) =>
+                            setTermInputs((s: any) => ({
+                              ...s,
+                              term: Math.round(clamp(parseNum(e.target.value, s.term), 5, 30) / 5) * 5,
+                            }))
+                          }
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">yrs</span>
+                      </div>
+                    </div>
                     <div className="text-center mt-1">{termInputs.term} Years</div>
                   </div>
                 </div>
@@ -578,9 +621,8 @@ const setTenure = (raw) => {
               </div>
             </div>
           )}
-
-
         </div>
+      </div>
     </section>
   );
 };
