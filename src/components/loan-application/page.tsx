@@ -25,34 +25,28 @@ export default function LoanApplicationPage() {
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+  e.preventDefault();
+  setIsLoading(true);
 
-    try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}")
+  try {
+    // Make API request directly — no login required
+    const response = await fetch(`${API_BASE_URL}/loan-application`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        service_id: 1,
+        amount: Number(formData.loanAmount),
+        full_name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        aadhaar: formData.aadhaar,
+        pan: formData.pan,
+        purpose: formData.purpose,
+      }),
+    });
 
-      
-
-      // Make API request similar to LoginPage
-     const response = await fetch(`${API_BASE_URL}/loan-application`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-  },
-  body: JSON.stringify({
-    user_id: user.id,
-    service_id: 1, // make sure this service exists in DB
-    amount: Number(formData.loanAmount), // <-- this is the important rename
-    // extra fields are fine; backend ignores them
-    fullName: formData.fullName,
-    email: formData.email,
-    phone: formData.phone,
-    aadhaar: formData.aadhaar,
-    pan: formData.pan,
-    purpose: formData.purpose,
-  }),
-});
 
 
       const data = await response.json()
