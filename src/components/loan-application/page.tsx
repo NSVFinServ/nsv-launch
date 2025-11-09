@@ -31,7 +31,11 @@ export default function LoanApplicationPage() {
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}")
 
-      
+      if (!user.id) {
+        alert("⚠️ Please login first to submit a loan application.")
+        setIsLoading(false)
+        return
+      }
 
       // Make API request similar to LoginPage
      const response = await fetch(`${API_BASE_URL}/loan-application`, {
