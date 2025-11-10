@@ -116,7 +116,8 @@ const PrivacyPolicy = () => {
               <p><strong>NSV Finserv</strong></p>
               <p>Email: nsvfinserv@gmail.com</p>
               <p>Phone: +91-9885885847</p>
-              <p>Address: [Your Business Address]</p>
+              <p>Address: 27-16-31/2a , Sri Krishna Nagar Colony, Neredmet,<br />
+                  Secunderabad - 500056, Telangana</p>
             </div>
 
           </div>
