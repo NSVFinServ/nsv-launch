@@ -13,6 +13,7 @@ import EmailDisplayPage from './components/email-display/page.tsx';
 import TermsConditions from './components/terms-conditions/page.tsx';
 import BlogsPage from './components/BlogsPage.tsx';
 import PrivacyPolicy from './components/privacy-policy/page.tsx';
+import AskExpertPage from "./components/askexpert/page";
 import './index.css';
 import ReferralPage from './components/referalpage/page.tsx';
 import AdminDashboardClean from './components/admin/AdminDashboardClean.tsx';
@@ -39,6 +40,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/referalpage" element={<ReferralPage />} />
         <Route path="/admin" element={<AdminDashboardClean />} />
         <Route path="/test-email" element={<TestEmailPage />} />
+        <Route path="/askexpert" element={<AskExpertPage />} />
         <Route path="/email-display" element={<EmailDisplayPage />} />
         <Route path="/terms-conditions" element={<TermsConditions />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
