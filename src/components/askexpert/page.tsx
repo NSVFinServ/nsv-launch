@@ -15,7 +15,7 @@ import { API_BASE_URL } from "@/lib/api.ts"
 
 export default function AskExpertPage() {
   const [formData, setFormData] = useState({
-    name: "",
+    fullName: "",
     email: "",
     phone: "",
     question: "",
@@ -38,7 +38,7 @@ export default function AskExpertPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          full_name: formData.name,
+          full_name: formData.fullName,
           email: formData.email,
           phone: formData.phone,
           question: formData.question,
@@ -49,21 +49,14 @@ export default function AskExpertPage() {
 
       if (response.ok) {
         alert("✅ Your question has been submitted! Our expert will contact you soon.")
-        setFormData({ name: "", email: "", phone: "", question: "" })
+        setFormData({ fullName: "", email: "", phone: "", question: "" })
       } else {
         console.error("Ask Expert submission failed:", data)
         alert(data.message || "Submission failed. Please try again.")
       }
     } catch (error) {
       console.error("Ask Expert error:", error)
-      if (
-        error instanceof TypeError &&
-        error.message.includes("fetch")
-      ) {
-        alert("Cannot connect to server. Please make sure the backend is running.")
-      } else {
-        alert("Submission failed. Please try again.")
-      }
+      alert("Server connection failed. Please try again later.")
     } finally {
       setIsLoading(false)
     }
@@ -105,9 +98,9 @@ export default function AskExpertPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <Input
-                name="name"
+                name="fullName"
                 placeholder="Full Name"
-                value={formData.name}
+                value={formData.fullName}
                 onChange={handleChange}
                 required
               />
