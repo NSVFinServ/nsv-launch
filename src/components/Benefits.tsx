@@ -201,7 +201,7 @@ export default Benefits;
         </div>
 
         <div className="mt-8 sm:mt-12 text-center">
-          <Link to="/askexpert/page.tsx">
+          <Link to="/askexpert">
           <button>
           <div className="inline-block bg-gray-900 hover:bg-gray-500 text-white font-medium py-2 sm:py-3 px-4 sm:px-6 text-sm sm:text-base rounded-md transition-colors duration-300">
             Get Expert Advice
