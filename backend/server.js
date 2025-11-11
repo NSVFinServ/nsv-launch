@@ -10,27 +10,6 @@ const otpGenerator = require('otp-generator');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-//askexpert api
-app.post("/ask-expert", (req, res) => {
-  const { full_name, email, phone, question } = req.body;
-
-  if (!full_name || !email || !phone || !question) {
-    return res.status(400).json({ ok: false, message: "All fields are required." });
-  }
-
-  const sql = `
-    INSERT INTO ask_expert (full_name, email, phone, question)
-    VALUES (?, ?, ?, ?)
-  `;
-  db.query(sql, [full_name, email, phone, question], (err, result) => {
-    if (err) {
-      console.error("Error inserting ask_expert record:", err);
-      return res.status(500).json({ ok: false, message: "Database error occurred." });
-    }
-    res.json({ ok: true, message: "Your question has been submitted!", id: result.insertId });
-  });
-});
-
 // 1) Trust proxy (Render/HTTPS)
 // ---- Proxy & CORS (final strict allow-list) ----
 /* ------------------------ CORS Allow-List (clean) ------------------------- */
@@ -1774,6 +1753,27 @@ app.delete('/api/admin/eligibility/:id', authenticateToken, async (req, res) => 
     console.error('Error deleting eligibility submission:', error);
     res.status(500).json({ error: 'Failed to delete eligibility submission' });
   }
+});
+//askexpert api 
+app.post("/api/ask-expert", (req, res) => {
+  const { full_name, email, phone, question } = req.body;
+
+  if (!full_name || !email || !phone || !question) {
+    return res.status(400).json({ ok: false, message: "All fields are required." });
+  }
+
+  const sql = `
+    INSERT INTO ask_expert (full_name, email, phone, question)
+    VALUES (?, ?, ?, ?)
+  `;
+
+  db.query(sql, [full_name, email, phone, question], (err, result) => {
+    if (err) {
+      console.error("❌ Database error:", err);
+      return res.status(500).json({ ok: false, message: "Database error." });
+    }
+    res.json({ ok: true, message: "Question submitted successfully!", id: result.insertId });
+  });
 });
 
 app.listen(PORT, () => {
