@@ -1754,6 +1754,7 @@ app.delete('/api/admin/eligibility/:id', authenticateToken, async (req, res) => 
     res.status(500).json({ error: 'Failed to delete eligibility submission' });
   }
 });
+app.use(express.json());
 //askexpert api 
 app.post("/api/ask-expert", (req, res) => {
   const { full_name, email, phone, question } = req.body;
