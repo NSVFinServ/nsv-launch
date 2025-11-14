@@ -101,7 +101,9 @@ export default function AskExpertPage() {
                 name="fullName"
                 placeholder="Full Name"
                 value={formData.fullName}
-                onChange={handleChange}
+                onChange={(e: any) =>
+                      setFormData(prev => ({ ...prev, fullName: e.target?.value ?? e }))
+                }
                 required
               />
               <Input
@@ -109,7 +111,9 @@ export default function AskExpertPage() {
                 type="email"
                 placeholder="Email Address"
                 value={formData.email}
-                onChange={handleChange}
+                onChange={(e: any) =>
+                       setFormData(prev => ({ ...prev, email: e.target?.value ?? e }))
+                }
                 required
               />
               <Input
@@ -117,7 +121,9 @@ export default function AskExpertPage() {
                 type="tel"
                 placeholder="Phone Number"
                 value={formData.phone}
-                onChange={handleChange}
+                onChange={(e: any) =>
+                        setFormData(prev => ({ ...prev, phone: e.target?.value ?? e }))
+                }
                 required
               />
               <textarea
