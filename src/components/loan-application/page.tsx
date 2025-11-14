@@ -109,7 +109,8 @@ export default function LoanApplicationPage() {
               <Input name="phone" type="tel" placeholder="Phone Number" value={formData.phone} onChange={handleChange} required />
               <Input name="aadhaar" placeholder="Aadhaar Number" value={formData.aadhaar} onChange={handleChange} required />
               <Input name="pan" placeholder="PAN Number" value={formData.pan} onChange={handleChange} required />
-              <Input name="loanAmount" type="number" placeholder="Loan Amount (₹)" value={formData.loanAmount} onChange={handleChange} required />
+              <Input name="loanAmount" type="number" placeholder="Loan Amount (₹)" value={formData.loanAmount} onChange={handleChange} required min={1}
+  max={250000000} />
               <textarea name="purpose" placeholder="Purpose of Loan" value={formData.purpose} onChange={handleChange} required className="w-full p-3 border rounded-xl h-24 resize-none" />
 
               <Button type="submit" className="w-full h-12 bg-gray-900 hover:bg-gray-500 text-white font-medium" disabled={isLoading}>
