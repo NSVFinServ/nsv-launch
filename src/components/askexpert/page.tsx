@@ -34,7 +34,7 @@ export default function AskExpertPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/ask-expert`, {
+      const response = await fetch(`${API_BASE_URL}/ask-expert`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
