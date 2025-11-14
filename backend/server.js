@@ -608,11 +608,11 @@ app.get('/api/loan-applications', async (req, res) => {
 // 9. Ask Expert Question
 app.post('/api/ask-expert', async (req, res) => {
   try {
-    const { user_id, question } = req.body;
+    const { user_id, full_name, email, phone, question } = req.body;
     
     const [result] = await promisePool.query(
-      'INSERT INTO ask_expert (user_id, question) VALUES (?, ?)',
-      [user_id, question]
+      "INSERT INTO ask_expert (user_id, full_name, email, phone, question) VALUES (?, ?, ?, ?, ?)",
+      [user_id, full_name, email, phone, question]
     );
     
     res.status(201).json({
