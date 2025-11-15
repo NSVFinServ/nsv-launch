@@ -48,19 +48,23 @@ interface NotificationPayload {
 }
 
 // ========================================
-// CONFIGURATION
+// CONFIGURATION - HARDCODED
 // ========================================
 
 const NOTIFICATION_CONFIG = {
+  // ✅ Base URL - Your n8n instance on Render
   N8N_BASE_URL: 'https://n8n-nsvfinserv.onrender.com',
+  
+  // ✅ Full webhook paths (including /webhook/)
   WEBHOOKS: {
-    LOGIN: 'website-login-alert',
-    EXPERT_ADVICE: 'expert-advice-form',
-    LOAN_APPLICATION: 'loan-application-form',
+    LOGIN: '/webhook/website-login-alert',
+    EXPERT_ADVICE: '/webhook/expert-advice-form',
+    LOAN_APPLICATION: '/webhook/loan-application-form',
   },
+  
   ENABLED: true,
   WEBSITE: 'nsvfinserv.com',
-  TIMEOUT: 5000,
+  TIMEOUT: 15000, // 15 seconds for Render cold starts
 };
 
 // ========================================
@@ -84,7 +88,7 @@ async function getUserIP(): Promise<string> {
     return data.ip;
   } catch (error: any) {
     console.log('Could not fetch IP address:', error.message);
-    return 'Browser';
+    return 'Unknown';
   }
 }
 
@@ -97,10 +101,15 @@ async function sendToWebhook(endpoint: string, payload: NotificationPayload): Pr
     return false;
   }
 
-  const url = `${NOTIFICATION_CONFIG.N8N_BASE_URL}/${endpoint}`;
+  // ✅ Construct full URL: base + endpoint
+  const url = `${NOTIFICATION_CONFIG.N8N_BASE_URL}${endpoint}`;
 
   try {
-    console.log(`📤 Sending notification to: ${url}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('📤 SENDING NOTIFICATION');
+    console.log('🌐 URL:', url);
+    console.log('📦 Payload:', JSON.stringify(payload, null, 2));
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), NOTIFICATION_CONFIG.TIMEOUT);
@@ -117,18 +126,26 @@ async function sendToWebhook(endpoint: string, payload: NotificationPayload): Pr
     clearTimeout(timeoutId);
 
     if (response.ok) {
-      console.log('✅ Notification sent successfully');
+      const responseData = await response.text();
+      console.log('✅ SUCCESS! Notification sent');
+      console.log('📥 Response:', responseData);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       return true;
     } else {
-      console.error(`❌ Failed to send notification. Status: ${response.status}`);
+      const errorText = await response.text();
+      console.error('❌ FAILED! Status:', response.status);
+      console.error('📥 Error Response:', errorText);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       return false;
     }
   } catch (error: any) {
     if (error.name === 'AbortError') {
-      console.error('⏱️ Notification timeout - n8n might be sleeping');
+      console.error('⏱️ TIMEOUT! n8n might be sleeping (Render cold start)');
+      console.error('💡 Solution: Wait 30 seconds and try again');
     } else {
-      console.error('❌ Notification error:', error.message);
+      console.error('❌ ERROR:', error.message);
     }
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     return false;
   }
 }
@@ -147,10 +164,7 @@ export async function sendLoginNotification(userData: LoginData): Promise<boolea
   }
 
   try {
-    console.log('📤 Sending login notification...', {
-      user: userData.name || userData.email,
-      time: new Date().toLocaleTimeString(),
-    });
+    console.log('🔐 Processing LOGIN notification...');
 
     const ipAddress = await getUserIP();
 
@@ -160,8 +174,10 @@ export async function sendLoginNotification(userData: LoginData): Promise<boolea
       userPhone: userData.phone || userData.mobile || userData.phoneNumber || 'N/A',
       userId: userData.id || userData.userId || userData._id || 'N/A',
       loginTime: new Date().toISOString(),
-      ipAddress: ipAddress || 'Unknown',
+      loginTimeReadable: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      ipAddress: ipAddress,
       website: NOTIFICATION_CONFIG.WEBSITE,
+      notificationType: 'Login',
     };
 
     return await sendToWebhook(NOTIFICATION_CONFIG.WEBHOOKS.LOGIN, payload);
@@ -185,10 +201,7 @@ export async function sendExpertAdviceNotification(formData: ExpertAdviceData): 
   }
 
   try {
-    console.log('📤 Sending Expert Advice notification...', {
-      user: formData.name,
-      time: new Date().toLocaleTimeString(),
-    });
+    console.log('💬 Processing EXPERT ADVICE notification...');
 
     const ipAddress = await getUserIP();
 
@@ -200,8 +213,10 @@ export async function sendExpertAdviceNotification(formData: ExpertAdviceData): 
       question: formData.question,
       category: formData.category || 'General',
       submissionTime: new Date().toISOString(),
-      ipAddress: ipAddress || 'Unknown',
+      submissionTimeReadable: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      ipAddress: ipAddress,
       website: NOTIFICATION_CONFIG.WEBSITE,
+      notificationType: 'Expert Advice',
     };
 
     return await sendToWebhook(NOTIFICATION_CONFIG.WEBHOOKS.EXPERT_ADVICE, payload);
@@ -225,12 +240,7 @@ export async function sendLoanApplicationNotification(formData: LoanApplicationD
   }
 
   try {
-    console.log('📤 Sending Loan Application notification...', {
-      user: formData.name,
-      loanType: formData.loanType,
-      amount: formData.loanAmount,
-      time: new Date().toLocaleTimeString(),
-    });
+    console.log('💰 Processing LOAN APPLICATION notification...');
 
     const ipAddress = await getUserIP();
 
@@ -240,14 +250,18 @@ export async function sendLoanApplicationNotification(formData: LoanApplicationD
       userEmail: formData.email,
       userPhone: formData.phone,
       loanType: formData.loanType,
-      loanAmount: formData.loanAmount,
+      loanAmount: `₹${formData.loanAmount}`,
       purpose: formData.purpose || 'Not specified',
       employmentType: formData.employmentType || 'Not specified',
       monthlyIncome: formData.monthlyIncome || 'Not specified',
       city: formData.city || 'Not specified',
+      aadhaar: formData.aadhaar || 'Not provided',
+      pan: formData.pan || 'Not provided',
       submissionTime: new Date().toISOString(),
-      ipAddress: ipAddress || 'Unknown',
+      submissionTimeReadable: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      ipAddress: ipAddress,
       website: NOTIFICATION_CONFIG.WEBSITE,
+      notificationType: 'Loan Application',
     };
 
     return await sendToWebhook(NOTIFICATION_CONFIG.WEBHOOKS.LOAN_APPLICATION, payload);
@@ -266,7 +280,7 @@ export async function sendLoanApplicationNotification(formData: LoanApplicationD
  */
 export function setNotificationsEnabled(enabled: boolean): void {
   NOTIFICATION_CONFIG.ENABLED = enabled;
-  console.log(`🔔 Notifications ${enabled ? 'enabled' : 'disabled'}`);
+  console.log(`🔔 Notifications ${enabled ? 'ENABLED ✅' : 'DISABLED ❌'}`);
 }
 
 /**
@@ -274,6 +288,24 @@ export function setNotificationsEnabled(enabled: boolean): void {
  */
 export function getNotificationStatus(): boolean {
   return NOTIFICATION_CONFIG.ENABLED;
+}
+
+/**
+ * Test notification setup - Run this to verify URLs
+ */
+export function testNotificationSetup(): void {
+  console.log('🔧 NOTIFICATION SETUP TEST');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('Base URL:', NOTIFICATION_CONFIG.N8N_BASE_URL);
+  console.log('');
+  console.log('Full Webhook URLs:');
+  console.log('1. Login:', NOTIFICATION_CONFIG.N8N_BASE_URL + NOTIFICATION_CONFIG.WEBHOOKS.LOGIN);
+  console.log('2. Expert:', NOTIFICATION_CONFIG.N8N_BASE_URL + NOTIFICATION_CONFIG.WEBHOOKS.EXPERT_ADVICE);
+  console.log('3. Loan App:', NOTIFICATION_CONFIG.N8N_BASE_URL + NOTIFICATION_CONFIG.WEBHOOKS.LOAN_APPLICATION);
+  console.log('');
+  console.log('Status:', NOTIFICATION_CONFIG.ENABLED ? 'ENABLED ✅' : 'DISABLED ❌');
+  console.log('Timeout:', NOTIFICATION_CONFIG.TIMEOUT + 'ms');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }
 
 // ========================================
@@ -286,4 +318,5 @@ export default {
   sendLoanApplicationNotification,
   setNotificationsEnabled,
   getNotificationStatus,
+  testNotificationSetup,
 };
