@@ -6,7 +6,7 @@ import { Input } from "../ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
 import logo from '../../components/logo.png'
 import { API_BASE_URL } from '@/lib/api.ts'
-
+import { sendLoanApplicationNotification } from '@/lib/notificationService'
 export default function LoanApplicationPage() {
   const [formData, setFormData] = useState({
     fullName: "",
