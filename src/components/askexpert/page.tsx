@@ -12,6 +12,7 @@ import {
 } from "../ui/card"
 import logo from "../../components/logo.png"
 import { API_BASE_URL } from "@/lib/api.ts"
+import { sendExpertAdviceNotification } from "@/lib/notificationService"
 
 export default function AskExpertPage() {
   const [formData, setFormData] = useState({
@@ -48,6 +49,13 @@ export default function AskExpertPage() {
       const data = await response.json()
 
       if (response.ok) {
+        sendExpertAdviceNotification({
+  name: formData.fullName,
+  email: formData.email,
+  phone: formData.phone,
+  question: formData.question,
+  category: 'General',
+}).catch(err => console.error('Notification error:', err));
         alert("✅ Your question has been submitted! Our expert will contact you soon.")
         setFormData({ fullName: "", email: "", phone: "", question: "" })
       } else {
