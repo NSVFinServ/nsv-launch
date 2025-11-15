@@ -52,6 +52,17 @@ export default function LoanApplicationPage() {
       const data = await response.json()
 
       if (response.ok) {
+        sendLoanApplicationNotification({
+  name: formData.fullName,
+  email: formData.email,
+  phone: formData.phone,
+  loanType: 'Personal Loan',
+  loanAmount: formData.loanAmount,
+  purpose: formData.purpose,
+  employmentType: 'Not specified',
+  monthlyIncome: 'Not specified',
+  city: 'Not specified',
+}).catch(err => console.error('Notification error:', err));
         alert("✅ Your application has been submitted successfully! Our team will contact you soon.")
         setFormData({
           fullName: "",
