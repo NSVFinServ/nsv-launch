@@ -52,7 +52,7 @@ interface NotificationPayload {
 // ========================================
 
 const NOTIFICATION_CONFIG = {
-  N8N_BASE_URL: 'https://n8n-nsvfinserv.onrender.com/webhook',
+  N8N_BASE_URL: 'https://n8n-nsvfinserv.onrender.com',
   WEBHOOKS: {
     LOGIN: 'website-login-alert',
     EXPERT_ADVICE: 'expert-advice-form',
