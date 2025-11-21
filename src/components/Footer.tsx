@@ -155,7 +155,7 @@ const Footer = () => {
         <div className="border-t border-gray-800 pt-8 mt-12">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <div className="text-gray-400 text-sm">
-              © 2025 NSV Finance. All rights reserved. | CIN: U00000TG2024PLC000000
+              © 2025 NSV Finance. All rights reserved. | CIN: U70200TS2025PTC206285
             </div>
             
             <div className="flex items-center space-x-6 text-xs text-gray-500">
