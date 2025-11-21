@@ -141,7 +141,7 @@ const Footer = () => {
                 </li>
               ))}
             </ul>
-
+{/* 
             {/* Certifications */}
             <div className="bg-gray-800 rounded-lg p-4">
               <h5 className="font-semibold text-sm mb-3">Certifications</h5>
@@ -153,7 +153,7 @@ const Footer = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Bottom Section */}
         <div className="border-t border-gray-800 pt-8 mt-12">
