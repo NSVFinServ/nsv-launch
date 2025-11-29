@@ -386,7 +386,7 @@ const EligibilityCalculator = () => {
                         value={contactData.email}
                         onChange={(e) => setContactData({ ...contactData, email: e.target.value })}
                       />
-
+                      <Link to="/askexpert">
                       <button
                         type="submit"
                         disabled={isSubmitting}
@@ -395,6 +395,7 @@ const EligibilityCalculator = () => {
                         {isSubmitting ? 'Submitting...' : 'Get Expert Consultation'}
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </button>
+                        </Link>
                     </form>
                   </div>
                 )}
