@@ -1,24 +1,29 @@
-import { StrictMode , useEffect} from 'react';
+import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
 import App from './App.tsx';
 import LoginPage from './components/login/page.tsx';
 import SignupPage from './components/signup/page.tsx';
 import ForgotPasswordPage from './components/forgot-password/page.tsx';
 import ResetPasswordPage from './components/reset-password/page.tsx';
 import LoanApplicationPage from './components/loan-application/page.tsx';
-import AdminDashboardEnhanced from './components/admin/AdminDashboardClean.tsx';
+import AdminDashboardClean from './components/admin/AdminDashboardClean.tsx';
 import TestEmailPage from './components/test-email/page.tsx';
 import EmailDisplayPage from './components/email-display/page.tsx';
 import TermsConditions from './components/terms-conditions/page.tsx';
 import BlogsPage from './components/BlogsPage.tsx';
 import PrivacyPolicy from './components/privacy-policy/page.tsx';
 import AskExpertPage from "./components/askexpert/page.tsx";
-import './index.css';
 import ReferralPage from './components/referalpage/page.tsx';
-import AdminDashboardClean from './components/admin/AdminDashboardClean.tsx';
+
 import AOS from 'aos';
 import 'aos/dist/aos.css';
+import './index.css';
+
+// ⭐ Add Vercel Analytics
+import { Analytics } from "@vercel/analytics/react";
+
 AOS.init({
   duration: 800,
   easing: 'ease-in-out',
@@ -45,6 +50,9 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/terms-conditions" element={<TermsConditions />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       </Routes>
+
+      {/* ⭐ Add this at the end */}
+      <Analytics />
     </BrowserRouter>
   </StrictMode>
 );
