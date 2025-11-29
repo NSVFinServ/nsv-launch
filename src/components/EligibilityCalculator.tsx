@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Calculator, ArrowRight } from 'lucide-react';
 import { eligibilityAPI } from '../lib/api.ts';  // Import the new API service
-
+import { Link } from 'react-router-dom';
 interface EligibilityResult {
   affordableEMI: number;
   eligibleLoan: number;
