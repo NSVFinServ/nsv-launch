@@ -1,151 +1,194 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from 'react';
+import { Menu, X, Phone, Mail, User, LogOut } from 'lucide-react';
+import logo from './logo.png';
+import { Link } from 'react-router-dom';
 
-const blogs = [
-  {
-    id: "home-loan-guide",
-    title: "Complete Guide to Home Loans in India",
-    desc: "Eligibility, interest rates, documents, and approval process explained.",
-    icon: "/images/icons/roadmap.svg",
-    gradient: "from-purple-500 to-indigo-500",
-  },
-  {
-    id: "customer-loan-experience",
-    title: "How NSV Finserv Simplifies Loan Processing",
-    desc: "Step-by-step process of hassle-free loan approvals.",
-    icon: "/images/icons/feedback.svg",
-    gradient: "from-pink-500 to-rose-500",
-  },
-  {
-    id: "loan-types",
-    title: "Types of Loans Offered by NSV Finserv",
-    desc: "Home, personal, business, education & more.",
-    icon: "/images/icons/tools.svg",
-    gradient: "from-cyan-500 to-blue-500",
-  },
-  {
-    id: "loan-eligibility",
-    title: "Loan Eligibility Criteria Explained",
-    desc: "How income, age, and credit score affect eligibility.",
-    icon: "/images/icons/prioritize.svg",
-    gradient: "from-orange-500 to-amber-500",
-  },
-  {
-    id: "cibil-score",
-    title: "Understanding CIBIL Score for Loans",
-    desc: "Why CIBIL matters and how to improve it.",
-    icon: "/images/icons/research.svg",
-    gradient: "from-green-500 to-emerald-500",
-  },
-  {
-    id: "loan-rejection",
-    title: "Top Reasons Why Loan Applications Get Rejected",
-    desc: "Avoid common mistakes during loan application.",
-    icon: "/images/icons/failure.svg",
-    gradient: "from-red-500 to-pink-600",
-  },
-  {
-    id: "interest-rates",
-    title: "How Loan Interest Rates Are Calculated",
-    desc: "Fixed vs floating interest rates explained simply.",
-    icon: "/images/icons/compare.svg",
-    gradient: "from-indigo-500 to-violet-600",
-  },
-  {
-    id: "document-checklist",
-    title: "Loan Documentation Checklist",
-    desc: "Documents required for fast loan approval.",
-    icon: "/images/icons/loop.svg",
-    gradient: "from-yellow-400 to-orange-500",
-  },
-  {
-    id: "business-loans",
-    title: "Business Loans for MSMEs & Startups",
-    desc: "Funding solutions to grow your business.",
-    icon: "/images/icons/growth.svg",
-    gradient: "from-teal-500 to-cyan-600",
-  },
-  {
-    id: "emi-planning",
-    title: "Smart EMI Planning for Loans",
-    desc: "How to manage EMIs without financial stress.",
-    icon: "/images/icons/ux.svg",
-    gradient: "from-fuchsia-500 to-purple-600",
-  },
-  {
-    id: "loan-settlement",
-    title: "Loan Settlement vs Foreclosure Explained",
-    desc: "Key differences every borrower must know.",
-    icon: "/images/icons/metrics.svg",
-    gradient: "from-blue-500 to-sky-500",
-  },
-  {
-    id: "why-nsv-finserv",
-    title: "Why Choose NSV Finserv for Your Loans",
-    desc: "Trusted advisors, fast approvals, zero hidden charges.",
-    icon: "/images/icons/idea.svg",
-    gradient: "from-lime-500 to-green-500",
-  },
-];
+const Header = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const isAdmin = user && (user.email === 'admin@nsvfinserv.com');
 
-const BlogsPage = () => {
+  useEffect(() => {
+    // Check if user is logged in
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    setUser(null);
+    window.location.href = '/';
+  };
+
+  const navigation = [
+    { name: 'Home', href: '#home' },
+    { name: 'Loan Products', href: '#services' },
+    { name: 'Calculators', href: '#calculators' },
+    { name: 'Contact', href: '#contact' },
+    { name: 'Blogs', href: '/blogs' },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50">
-
-      {/* HERO – MATCHES HEADER THEME */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-14 text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">
-            Blogs & Financial Insights
-          </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Expert guidance on loans, eligibility, EMIs, interest rates, and smart financial planning by NSV Finserv.
-          </p>
+    <header className="bg-white shadow-sm sticky top-0 z-50">
+      {/* Top contact bar */}
+      <div className="bg-gray-800 text-white py-2 px-4" data-aos="fade-right">
+        <div className="max-w-7xl mx-auto flex justify-between items-center text-sm">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-1">
+              <Phone className="w-4 h-4" />
+              <span>+91-9885885847</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <Mail className="w-4 h-4" />
+              <span>nsvfinserv@gmail.com</span>
+            </div>
+          </div>
+          <div className="hidden md:block">
+            <span>51 lenders offering lowest interest rates</span>
+          </div>
         </div>
       </div>
 
-      {/* BLOG GRID */}
-      <div className="max-w-7xl mx-auto px-6 py-14">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {blogs.map((blog) => (
-            <div
-              key={blog.id}
-              className="bg-white rounded-2xl shadow hover:shadow-lg transition overflow-hidden"
-            >
-              {/* Card Top (Colorful as requested) */}
-              <div
-                className={`h-36 bg-gradient-to-br ${blog.gradient} flex items-center justify-center`}
-              >
-                <img
-                  src={blog.icon}
-                  alt={blog.title}
-                  className="w-14 h-14"
-                />
+      {/* Main navigation */}
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
+          <div className="flex items-center space-x-2" data-aos="fade-right">
+            <img src={logo} alt="NSV Finance Logo" className="w-10 h-10 rounded-full object-cover" />
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">NSV FinServ</h1>
+              <p className="text-xs text-gray-500">Your Smart Loan Partner</p>
+            </div>
+          </div>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-8" data-aos="fade-down" data-aos-delay="100">
+            {navigation.map((item) => (
+  item.href.startsWith('#') ? (
+    <a
+      key={item.name}
+      href={item.href}
+      className="text-gray-700 hover:text-gray-400 transition-colors duration-200 font-medium"
+    >
+      {item.name}
+    </a>
+  ) : (
+    <Link
+      key={item.name}
+      to={item.href}
+      className="text-gray-700 hover:text-gray-400 transition-colors duration-200 font-medium"
+    >
+      {item.name}
+    </Link>
+  )
+))}
+            {user ? (
+             <div className="flex items-center space-x-4" data-aos="fade-left" data-aos-delay="200">
+                <div className="relative">
+                  <button
+                    onClick={() => setShowProfileMenu(!showProfileMenu)}
+                    className="flex items-center space-x-2 bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+                  >
+                    <User className="w-4 h-4" />
+                    <span className="font-medium">
+                      {isAdmin ? 'Welcome back, Admin' : `Welcome, ${user.name}`}
+                    </span>
+                  </button>
+                  {showProfileMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {isAdmin && (
+                  <Link to="/admin">
+                    <button className="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-500 transition-colors duration-200 font-medium">
+                      Admin Dashboard
+                    </button>
+                  </Link>
+                )}
               </div>
+            ) : (
+              <Link to="/login">
+                <button className="bg-gray-800 text-white px-6 py-2 rounded-lg hover:bg-gray-500 transition-colors duration-200 font-medium">
+                  Login
+                </button>
+              </Link>
+            )}
+          </div>
 
-              {/* Card Content */}
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {blog.title}
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  {blog.desc}
-                </p>
+          {/* Mobile menu button */}
+          <div className="md:hidden" data-aos="fade-left" data-aos-delay="200">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="text-gray-700 hover:text-gray-400"
+            >
+              {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+        </div>
 
-                <Link
-                  to={`/blogs/${blog.id}`}
-                  className="text-sm font-medium text-gray-800 hover:text-gray-500"
+        {/* Mobile Navigation */}
+        {isMenuOpen && (
+          <div className="md:hidden border-t border-gray-200" data-aos="fade-left" data-aos-delay="200">
+            <div className="py-4 space-y-2">
+              {navigation.map((item) => (
+                <a
+                  key={item.name}
+                  href={item.href}
+                  className="block px-4 py-2 text-white-900 hover:text-gray-800 hover:bg-gray-400 rounded-lg transition-colors duration-200"
+                  onClick={() => setIsMenuOpen(false)}
                 >
-                  Read article →
-                </Link>
+                  {item.name}
+                </a>
+              ))}
+              <div className="px-4 pt-2">
+                {user ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-lg">
+                      <User className="w-4 h-4" />
+                      <span className="font-medium">{isAdmin ? 'Welcome back, Admin' : `Welcome, ${user.name}`}</span>
+                    </div>
+                    {isAdmin && (
+                      <Link to="/admin">
+                        <button className="w-full bg-gray-800 text-white py-2 rounded-lg hover:bg-gray-500 transition-colors duration-200 font-medium">
+                          Admin Dashboard
+                        </button>
+                      </Link>
+                    )}
+                    <button
+                      onClick={handleLogout}
+                      className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium flex items-center justify-center space-x-2"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                ) : (
+                  <Link to="/login">
+                    <button className="w-full bg-gray-800 text-white py-2 rounded-lg hover:bg-gray-500 transition-colors duration-200 font-medium">
+                      Login
+                    </button>
+                  </Link>
+                )}
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-
-    </div>
+          </div>
+        )}
+      </nav>
+    </header>
   );
 };
 
-export default BlogsPage;
+export default Header;
+according to this change color code 
