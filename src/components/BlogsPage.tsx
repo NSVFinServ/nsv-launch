@@ -88,23 +88,23 @@ const blogs = [
   },
 ];
 
-
 const BlogsPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero */}
-      <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white">
+
+      {/* HERO – NSV FINSERV THEME */}
+      <div className="bg-gray-100 border-b">
         <div className="max-w-7xl mx-auto px-6 py-16 text-center">
-          <h1 className="text-4xl font-bold mb-3">
-            Blogs on Product Management & User Feedback
+          <h1 className="text-4xl font-bold text-gray-900 mb-3">
+            Blogs & Financial Insights
           </h1>
-          <p className="text-white/90 max-w-2xl mx-auto">
-            Curated insights, templates, and frameworks for modern teams.
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Trusted guidance on loans, eligibility, EMIs, and smart financial planning by NSV Finserv.
           </p>
         </div>
       </div>
 
-      {/* Grid */}
+      {/* BLOG GRID */}
       <div className="max-w-7xl mx-auto px-6 py-14">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {blogs.map((blog) => (
@@ -112,14 +112,20 @@ const BlogsPage = () => {
               key={blog.id}
               className="bg-white rounded-2xl shadow hover:shadow-lg transition overflow-hidden"
             >
+              {/* Card Header */}
               <div
                 className={`h-36 bg-gradient-to-br ${blog.gradient} flex items-center justify-center`}
               >
-                <img src={blog.icon} alt={blog.title} className="w-14 h-14" />
+                <img
+                  src={blog.icon}
+                  alt={blog.title}
+                  className="w-14 h-14"
+                />
               </div>
 
+              {/* Card Body */}
               <div className="p-6">
-                <h3 className="text-lg font-semibold mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   {blog.title}
                 </h3>
                 <p className="text-sm text-gray-600 mb-4">
@@ -137,6 +143,7 @@ const BlogsPage = () => {
           ))}
         </div>
       </div>
+
     </div>
   );
 };
