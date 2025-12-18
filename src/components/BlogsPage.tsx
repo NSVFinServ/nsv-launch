@@ -92,14 +92,14 @@ const BlogsPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* HERO – NSV FINSERV THEME */}
-      <div className="bg-gray-100 border-b">
-        <div className="max-w-7xl mx-auto px-6 py-16 text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">
+      {/* HERO – GRAY BG + WHITE TEXT */}
+      <div className="bg-gray-800 border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-6 py-14 text-center">
+          <h1 className="text-4xl font-bold text-white mb-3">
             Blogs & Financial Insights
           </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Trusted guidance on loans, eligibility, EMIs, and smart financial planning by NSV Finserv.
+          <p className="text-gray-300 max-w-2xl mx-auto">
+            Expert guidance on loans, eligibility, EMIs, interest rates, and smart financial planning by NSV Finserv.
           </p>
         </div>
       </div>
@@ -112,7 +112,7 @@ const BlogsPage = () => {
               key={blog.id}
               className="bg-white rounded-2xl shadow hover:shadow-lg transition overflow-hidden"
             >
-              {/* Card Header */}
+              {/* Colorful card header */}
               <div
                 className={`h-36 bg-gradient-to-br ${blog.gradient} flex items-center justify-center`}
               >
@@ -123,7 +123,7 @@ const BlogsPage = () => {
                 />
               </div>
 
-              {/* Card Body */}
+              {/* Card body */}
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   {blog.title}
@@ -134,7 +134,7 @@ const BlogsPage = () => {
 
                 <Link
                   to={`/blogs/${blog.id}`}
-                  className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                  className="text-sm font-medium text-gray-800 hover:text-gray-500"
                 >
                   Read article →
                 </Link>
