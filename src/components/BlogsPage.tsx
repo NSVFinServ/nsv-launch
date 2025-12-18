@@ -1,110 +1,143 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, User, CalendarDays } from 'lucide-react';
+import React from "react";
+import { Link } from "react-router-dom";
 
-const BlogPage = () => {
-  // 📝 You can easily change this info anytime
-  const blog = {
-    title: "Understanding Loans & Financial Services",
-    author: "NSV Finserv Team",
-    date: new Date().toLocaleDateString(),
-    content: `
-      Loans are one of the most effective ways to achieve financial goals — whether it’s buying a home, 
-      funding education, expanding a business, or covering emergencies. At NSV Finserv, we connect 
-      customers with trusted financial institutions that provide fast and transparent loan services.
-    `,
-    sections: [
-      {
-        heading: "1. What Are Financial Services?",
-        text: `Financial services include a wide range of activities — from banking, insurance, and 
-        investments to credit and advisory services. These services help individuals and businesses 
-        manage money, reduce risk, and plan for the future.`,
-      },
-      {
-        heading: "2. How NSV Finserv Helps",
-        text: `NSV Finserv acts as a bridge between customers and lenders. We assist in finding the best 
-        loan options based on your profile, credit score, and needs. Our experts ensure that 
-        applications are processed smoothly with minimal paperwork.`,
-        points: [
-          "Home Loans, Business Loans, and Personal Loans",
-          "Transparent documentation and processing",
-          "Dedicated loan advisors to guide every step",
-          "Zero hidden charges and fast disbursement",
-        ],
-      },
-      {
-        heading: "3. Benefits of Choosing NSV Finserv",
-        text: `We simplify financial decisions by giving you expert guidance and comparing multiple 
-        institutions. Whether you're an entrepreneur or a salaried employee, our team ensures you 
-        get the best rates available.`,
-        points: [
-          "Compare offers from multiple banks",
-          "Quick eligibility check",
-          "Secure and confidential data handling",
-          "Customer-first support system",
-        ],
-      },
-      {
-        heading: "4. Final Thoughts",
-        text: `Loans are not just about borrowing money — they’re about building opportunities. 
-        With NSV Finserv, you get a trusted financial partner that simplifies the process and 
-        helps you achieve your dreams responsibly.`,
-      },
-    ],
-  };
+const blogs = [
+  {
+    id: "product-roadmap",
+    title: "10 Inspiring Product Roadmap Examples",
+    desc: "Examples and templates used by top product teams.",
+    icon: "/images/icons/roadmap.svg",
+    gradient: "from-purple-500 to-indigo-500",
+  },
+  {
+    id: "customer-feedback",
+    title: "Customer Feedback in SaaS",
+    desc: "How to collect and act on feedback effectively.",
+    icon: "/images/icons/feedback.svg",
+    gradient: "from-pink-500 to-rose-500",
+  },
+  {
+    id: "product-tools",
+    title: "Product Management Tools",
+    desc: "Best tools for PMs in 2024.",
+    icon: "/images/icons/tools.svg",
+    gradient: "from-cyan-500 to-blue-500",
+  },
+  {
+    id: "feature-priority",
+    title: "Feature Prioritization Methods",
+    desc: "RICE, MoSCoW, Kano explained.",
+    icon: "/images/icons/prioritize.svg",
+    gradient: "from-orange-500 to-amber-500",
+  },
+  {
+    id: "user-research",
+    title: "User Research Basics",
+    desc: "Understand users before building.",
+    icon: "/images/icons/research.svg",
+    gradient: "from-green-500 to-emerald-500",
+  },
+  {
+    id: "product-failure",
+    title: "Why Products Fail",
+    desc: "Common mistakes & lessons.",
+    icon: "/images/icons/failure.svg",
+    gradient: "from-red-500 to-pink-600",
+  },
+  {
+    id: "roadmap-tools",
+    title: "Roadmap Tools Compared",
+    desc: "Compare the best roadmap tools.",
+    icon: "/images/icons/compare.svg",
+    gradient: "from-indigo-500 to-violet-600",
+  },
+  {
+    id: "feedback-loop",
+    title: "Building a Feedback Loop",
+    desc: "Continuous product improvement.",
+    icon: "/images/icons/loop.svg",
+    gradient: "from-yellow-400 to-orange-500",
+  },
+  {
+    id: "saas-growth",
+    title: "SaaS Product Growth",
+    desc: "Scaling with data-driven decisions.",
+    icon: "/images/icons/growth.svg",
+    gradient: "from-teal-500 to-cyan-600",
+  },
+  {
+    id: "ux-decisions",
+    title: "UX Decisions That Matter",
+    desc: "UX choices that impact conversions.",
+    icon: "/images/icons/ux.svg",
+    gradient: "from-fuchsia-500 to-purple-600",
+  },
+  {
+    id: "product-metrics",
+    title: "Product Metrics That Matter",
+    desc: "KPIs every PM should track.",
+    icon: "/images/icons/metrics.svg",
+    gradient: "from-blue-500 to-sky-500",
+  },
+  {
+    id: "idea-validation",
+    title: "Validating Product Ideas",
+    desc: "Test ideas before building.",
+    icon: "/images/icons/idea.svg",
+    gradient: "from-lime-500 to-green-500",
+  },
+];
 
+const BlogsPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 py-6">
-          <Link
-            to="/"
-            className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Home
-          </Link>
-          <h1 className="text-4xl font-bold text-gray-900">{blog.title}</h1>
-          <div className="flex items-center gap-4 text-gray-500 mt-3 text-sm">
-            <span className="flex items-center gap-1">
-              <User className="w-4 h-4" /> {blog.author}
-            </span>
-            <span className="flex items-center gap-1">
-              <CalendarDays className="w-4 h-4" /> {blog.date}
-            </span>
-          </div>
+      {/* Hero */}
+      <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white">
+        <div className="max-w-7xl mx-auto px-6 py-16 text-center">
+          <h1 className="text-4xl font-bold mb-3">
+            Blogs on Product Management & User Feedback
+          </h1>
+          <p className="text-white/90 max-w-2xl mx-auto">
+            Curated insights, templates, and frameworks for modern teams.
+          </p>
         </div>
-      </header>
+      </div>
 
-      {/* Blog Content */}
-      <main className="max-w-5xl mx-auto px-4 py-10">
-        <article className="bg-white rounded-xl shadow-md p-8 prose prose-gray max-w-none">
-          <p className="lead text-gray-700 mb-8">{blog.content}</p>
+      {/* Grid */}
+      <div className="max-w-7xl mx-auto px-6 py-14">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {blogs.map((blog) => (
+            <div
+              key={blog.id}
+              className="bg-white rounded-2xl shadow hover:shadow-lg transition overflow-hidden"
+            >
+              <div
+                className={`h-36 bg-gradient-to-br ${blog.gradient} flex items-center justify-center`}
+              >
+                <img src={blog.icon} alt={blog.title} className="w-14 h-14" />
+              </div>
 
-          {blog.sections.map((section, index) => (
-            <div key={index} className="mt-8">
-              <h2>{section.heading}</h2>
-              <p>{section.text}</p>
-              {section.points && (
-                <ul>
-                  {section.points.map((point, i) => (
-                    <li key={i}>{point}</li>
-                  ))}
-                </ul>
-              )}
+              <div className="p-6">
+                <h3 className="text-lg font-semibold mb-2">
+                  {blog.title}
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  {blog.desc}
+                </p>
+
+                <Link
+                  to={`/blogs/${blog.id}`}
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                >
+                  Read article →
+                </Link>
+              </div>
             </div>
           ))}
-
-          <hr className="my-10" />
-
-          <div className="text-center text-sm text-gray-500">
-            © {new Date().getFullYear()} NSV Finserv. All rights reserved.
-          </div>
-        </article>
-      </main>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default BlogPage;
+export default BlogsPage;
