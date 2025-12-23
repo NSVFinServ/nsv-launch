@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MDEditor from '@uiw/react-md-editor';
-import '@uiw/react-md-editor/dist/mdeditor.css';
-import '@uiw/react-markdown-preview/dist/markdown.css';
+import '@uiw/react-md-editor/markdown-editor.css';
+import '@uiw/react-markdown-preview/markdown.css';
 import { API_BASE_URL , withApi} from '@/lib/api.ts';
 import{
   Users, 
