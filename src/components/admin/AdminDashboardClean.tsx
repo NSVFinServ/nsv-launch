@@ -1694,14 +1694,43 @@ const handleAddBlog = async (e: React.FormEvent) => {
     </div>
 
     <Card>
-      <CardContent>
-        <p className="text-gray-500">
-          Blog management UI coming next (create / edit / delete).
-        </p>
-      </CardContent>
-    </Card>
-  </div>
-)}
+  <CardContent>
+    {blogs.length === 0 ? (
+      <p className="text-gray-500">No blogs created yet.</p>
+    ) : (
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead>
+          <tr>
+            <th className="text-left py-2">Title</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th className="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {blogs.map((blog) => (
+            <tr key={blog.id}>
+              <td className="py-2 font-medium">{blog.title}</td>
+              <td>
+                {blog.is_published ? 'Published' : 'Draft'}
+              </td>
+              <td>{formatDate(blog.created_at)}</td>
+              <td className="text-right">
+                <button
+                  onClick={() => handleDeleteBlog(blog.id)}
+                  className="text-red-600"
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+  </CardContent>
+</Card>
+
 
                 {/* Recent Activity */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
