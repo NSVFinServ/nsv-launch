@@ -1,7 +1,8 @@
 import { useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { API_BASE_URL } from '@/lib/api';
 
-const BlogDetails = () => {
+const BlogDetailsPage = () => {
   const { slug } = useParams();
   const [blog, setBlog] = useState<any>(null);
 
@@ -27,4 +28,4 @@ const BlogDetails = () => {
   );
 };
 
-export default BlogDetails;
+export default BlogDetailsPage;
