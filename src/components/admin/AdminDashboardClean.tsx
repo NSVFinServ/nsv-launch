@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import MDEditor from '@uiw/react-md-editor';
-import '@uiw/react-md-editor/dist/mdeditor.css';
-
 import { API_BASE_URL , withApi} from '@/lib/api.ts';
 import{
   Users, 
