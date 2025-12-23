@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import MDEditor from '@uiw/react-md-editor';
+import '@uiw/react-md-editor/dist/mdeditor.css';
+import '@uiw/react-markdown-preview/dist/markdown.css';
 import { API_BASE_URL , withApi} from '@/lib/api.ts';
 import{
   Users, 
@@ -1109,11 +1110,14 @@ const handleAddBlog = async (e: React.FormEvent) => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Blog Content *
             </label>
-            <ReactQuill
-              value={newBlog.content}
-              onChange={(value) => setNewBlog({ ...newBlog, content: value })}
-              style={{ height: '250px', marginBottom: '40px' }}
-            />
+           <MDEditor
+  value={newBlog.content}
+  onChange={(value) =>
+    setNewBlog({ ...newBlog, content: value || '' })
+  }
+  height={350}
+/>
+
           </div>
 
           {/* Publish Toggle */}
