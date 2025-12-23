@@ -24,6 +24,7 @@ import{
   Calculator
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Newspaper } from 'lucide-react';
 
 // Define TypeScript interfaces
 interface User {
@@ -900,16 +901,18 @@ const AdminDashboardClean = () => {
 
   // Navigation items
   const navigationItems = [
-    { id: 'overview', label: 'Dashboard', icon: BarChart3 },
-    { 
-      id: 'content', 
-      label: 'Content Management', 
-      items: [
-        { id: 'regulatory', label: 'Regulatory Updates', icon: BookOpen, count: regulatoryUpdates.length },
-        { id: 'events', label: 'Events', icon: Calendar, count: events.length },
-        { id: 'videos', label: 'Testimonial Videos', icon: Video, count: testimonialVideos.length }
-      ]
-    },
+  { id: 'overview', label: 'Dashboard', icon: BarChart3 },
+  { 
+    id: 'content', 
+    label: 'Content Management', 
+    items: [
+      { id: 'blogs', label: 'Blogs', icon: Newspaper },   // ✅ NEW
+      { id: 'regulatory', label: 'Regulatory Updates', icon: BookOpen, count: regulatoryUpdates.length },
+      { id: 'events', label: 'Events', icon: Calendar, count: events.length },
+      { id: 'videos', label: 'Testimonial Videos', icon: Video, count: testimonialVideos.length }
+    ]
+  },
+
     { 
       id: 'users', 
       label: 'User Management', 
@@ -1472,6 +1475,29 @@ const AdminDashboardClean = () => {
                     </CardContent>
                   </Card>
                 </div>
+{/* Blogs */}
+{activeTab === 'blogs' && (
+  <div className="space-y-6">
+    <div className="flex justify-between items-center">
+      <h1 className="text-2xl font-bold text-gray-900">Blogs</h1>
+
+      <button
+        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        Add Blog
+      </button>
+    </div>
+
+    <Card>
+      <CardContent>
+        <p className="text-gray-500">
+          Blog management UI coming next (create / edit / delete).
+        </p>
+      </CardContent>
+    </Card>
+  </div>
+)}
 
                 {/* Recent Activity */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
