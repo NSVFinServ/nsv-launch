@@ -231,6 +231,12 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Routes
+// ---------- Admin guard (uses your existing admin token shape) ----------
+const isAdmin = (req, res, next) => {
+  // Your admin login issues token with { userId: 'admin' }
+  if (req?.user?.userId === 'admin') return next();
+  return res.status(403).json({ error: 'admin_only' });
+};
 // ======================= BLOG APIs =======================
 
 // Admin: Create blog
@@ -440,13 +446,6 @@ app.post('/api/signup', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-// ---------- Admin guard (uses your existing admin token shape) ----------
-const isAdmin = (req, res, next) => {
-  // Your admin login issues token with { userId: 'admin' }
-  if (req?.user?.userId === 'admin') return next();
-  return res.status(403).json({ error: 'admin_only' });
-};
-
 // ---------- Admin: View one user ----------
 app.get('/api/admin/users/:id', authenticateToken, isAdmin, async (req, res) => {
   try {
