@@ -231,6 +231,120 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Routes
+// ======================= BLOG APIs =======================
+
+// Admin: Create blog
+app.post(
+  '/api/admin/blogs',
+  authenticateToken,
+  isAdmin,
+  upload.single('thumbnail'),
+  async (req, res) => {
+    try {
+      const {
+        title,
+        description,
+        content,
+        author,
+        category,
+        meta_title,
+        meta_description,
+        keywords,
+        is_published,
+      } = req.body;
+
+      if (!title || !content) {
+        return res.status(400).json({ error: 'Title and content are required' });
+      }
+
+      const slug = title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+
+      const thumbnail = req.file
+        ? `/uploads/${req.file.filename}`
+        : null;
+
+      await promisePool.query(
+        `
+        INSERT INTO blogs
+        (title, description, content, slug, author, category, thumbnail,
+         meta_title, meta_description, keywords, is_published)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          title,
+          description || null,
+          content,
+          slug,
+          author || null,
+          category || null,
+          thumbnail,
+          meta_title || null,
+          meta_description || null,
+          keywords || null,
+          is_published ? 1 : 0,
+        ]
+      );
+
+      res.json({ message: 'Blog created successfully', slug });
+    } catch (err) {
+      console.error('Create blog error:', err);
+      res.status(500).json({ error: 'Failed to create blog' });
+    }
+  }
+);
+// Public: Get all blogs
+app.get('/api/blogs', async (req, res) => {
+  try {
+    const [rows] = await promisePool.query(
+      'SELECT * FROM blogs WHERE is_published = 1 ORDER BY created_at DESC'
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Get blogs error:', err);
+    res.status(500).json({ error: 'Failed to fetch blogs' });
+  }
+});
+// Public: Get single blog by slug
+app.get('/api/blogs/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const [rows] = await promisePool.query(
+      'SELECT * FROM blogs WHERE slug = ? AND is_published = 1 LIMIT 1',
+      [slug]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Blog not found' });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Get blog error:', err);
+    res.status(500).json({ error: 'Failed to fetch blog' });
+  }
+});
+// Admin: Get all blogs (published + drafts)
+app.get(
+  '/api/admin/blogs',
+  authenticateToken,
+  isAdmin,
+  async (req, res) => {
+    try {
+      const [rows] = await promisePool.query(
+        'SELECT * FROM blogs ORDER BY created_at DESC'
+      );
+      res.json(rows);
+    } catch (err) {
+      console.error('Admin get blogs error:', err);
+      res.status(500).json({ error: 'Failed to fetch blogs' });
+    }
+  }
+);
+
 
 // Test database connection endpoint
 app.get('/api/test-db', async (req, res) => {
