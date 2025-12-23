@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '@/lib/api';
 
 const BlogDetailsPage = () => {
-  const { slug } = useParams();
+  const { slug } = useParams<{ slug: string }>();
   const [blog, setBlog] = useState<any>(null);
 
   useEffect(() => {
@@ -23,7 +23,9 @@ const BlogDetailsPage = () => {
         <img src={blog.thumbnail} className="my-6 rounded-lg" />
       )}
 
-      <div className="prose" dangerouslySetInnerHTML={{ __html: blog.content }} />
+      <div className="whitespace-pre-wrap">
+        {blog.content}
+      </div>
     </div>
   );
 };
