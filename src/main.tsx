@@ -16,6 +16,7 @@ import BlogsPage from './components/BlogsPage.tsx';
 import PrivacyPolicy from './components/privacy-policy/page.tsx';
 import AskExpertPage from "./components/askexpert/page.tsx";
 import ReferralPage from './components/referalpage/page.tsx';
+import BlogDetailsPage from './components/BlogDetailsPage.tsx';
 
 import AOS from 'aos';
 import 'aos/dist/aos.css';
@@ -39,6 +40,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/blogs" element={<BlogsPage />} />
+        <Route path="/blogs/:slug" element={<BlogDetailsPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/loan-application" element={<LoanApplicationPage />} />
