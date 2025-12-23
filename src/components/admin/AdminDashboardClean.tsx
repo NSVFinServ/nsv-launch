@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import MDEditor from '@uiw/react-md-editor';
-import { API_BASE_URL , withApi} from '@/lib/api.ts';
+import { API_BASE_URL} from '@/lib/api.ts';
 import{
   Users, 
   FileText, 
@@ -1112,13 +1111,17 @@ const handleAddBlog = async (e: React.FormEvent) => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Blog Content *
             </label>
-           <MDEditor
+       <textarea
   value={newBlog.content}
-  onChange={(value) =>
-    setNewBlog({ ...newBlog, content: value || '' })
+  onChange={(e) =>
+    setNewBlog({ ...newBlog, content: e.target.value })
   }
-  height={350}
+  rows={12}
+  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+  placeholder="Write blog content here..."
+  required
 />
+
 
           </div>
 
@@ -1681,11 +1684,13 @@ const handleAddBlog = async (e: React.FormEvent) => {
       <h1 className="text-2xl font-bold text-gray-900">Blogs</h1>
 
       <button
-        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
-      >
-        <Plus className="h-4 w-4 mr-2" />
-        Add Blog
-      </button>
+  onClick={() => setShowBlogModal(true)}
+  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
+>
+  <Plus className="h-4 w-4 mr-2" />
+  Add Blog
+</button>
+
     </div>
 
     <Card>
