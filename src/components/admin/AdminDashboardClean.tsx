@@ -140,8 +140,15 @@ interface Blog {
   created_at: string;
 }
 
-const [blogs, setBlogs] = useState<Blog[]>([]);
-const [showBlogModal, setShowBlogModal] = useState(false);
+const [newBlog, setNewBlog] = useState({
+  title: '',
+  description: '',
+  content: '',
+  is_published: true,
+});
+
+const [blogImage, setBlogImage] = useState<File | null>(null);
+const [blogImagePreview, setBlogImagePreview] = useState<string | null>(null);
 
 
 const AdminDashboardClean = () => {
@@ -311,6 +318,55 @@ const AdminDashboardClean = () => {
       year: 'numeric'
     });
   };
+  const handleBlogImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  if (e.target.files && e.target.files[0]) {
+    const file = e.target.files[0];
+    setBlogImage(file);
+
+    const reader = new FileReader();
+    reader.onload = () => setBlogImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+};
+const handleAddBlog = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  try {
+    const formData = new FormData();
+    formData.append('title', newBlog.title);
+    formData.append('description', newBlog.description);
+    formData.append('content', newBlog.content);
+    formData.append('is_published', newBlog.is_published ? '1' : '0');
+
+    if (blogImage) {
+      formData.append('thumbnail', blogImage);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/admin/blogs`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create blog');
+    }
+
+    setShowBlogModal(false);
+    setNewBlog({ title: '', description: '', content: '', is_published: true });
+    setBlogImage(null);
+    setBlogImagePreview(null);
+
+    fetchAllData();
+    showActionMessage('Blog created successfully', 'success');
+  } catch (err) {
+    console.error(err);
+    showActionMessage('Failed to create blog', 'error');
+  }
+};
+
 
   // Handle logout
   const handleLogout = () => {
@@ -910,7 +966,7 @@ const AdminDashboardClean = () => {
       if (!response.ok) {
         throw new Error('Failed to add regulatory update');
       }
-
+      
       // Reset form and close modal
       setNewRegulatoryUpdate({
         title: '',
@@ -987,6 +1043,108 @@ const AdminDashboardClean = () => {
           {actionStatus.message}
         </div>
       )}
+      {/* Create Blog Modal */}
+{showBlogModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium">Create Blog</h3>
+          <button onClick={() => setShowBlogModal(false)}>
+            <X className="h-6 w-6 text-gray-500" />
+          </button>
+        </div>
+
+        <form onSubmit={handleAddBlog} className="space-y-4">
+          {/* Title */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Blog Title *
+            </label>
+            <input
+              type="text"
+              value={newBlog.title}
+              onChange={(e) => setNewBlog({ ...newBlog, title: e.target.value })}
+              className="w-full px-3 py-2 border rounded-md"
+              required
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Short Description
+            </label>
+            <textarea
+              rows={2}
+              value={newBlog.description}
+              onChange={(e) =>
+                setNewBlog({ ...newBlog, description: e.target.value })
+              }
+              className="w-full px-3 py-2 border rounded-md"
+            />
+          </div>
+
+          {/* Thumbnail */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Thumbnail Image
+            </label>
+            <input type="file" accept="image/*" onChange={handleBlogImageChange} />
+            {blogImagePreview && (
+              <img
+                src={blogImagePreview}
+                alt="Preview"
+                className="mt-2 h-24 rounded-md object-cover"
+              />
+            )}
+          </div>
+
+          {/* Content Editor */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Blog Content *
+            </label>
+            <ReactQuill
+              value={newBlog.content}
+              onChange={(value) => setNewBlog({ ...newBlog, content: value })}
+              style={{ height: '250px', marginBottom: '40px' }}
+            />
+          </div>
+
+          {/* Publish Toggle */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={newBlog.is_published}
+              onChange={(e) =>
+                setNewBlog({ ...newBlog, is_published: e.target.checked })
+              }
+            />
+            <span className="text-sm text-gray-700">Publish immediately</span>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowBlogModal(false)}
+              className="px-4 py-2 border rounded-md"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Create Blog
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Event Modal */}
       {showEventModal && (
