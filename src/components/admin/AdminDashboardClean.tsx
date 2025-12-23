@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MDEditor from '@uiw/react-md-editor';
-import '@uiw/react-md-editor/markdown-editor.css';
-import '@uiw/react-markdown-preview/markdown.css';
+import '@uiw/react-md-editor/dist/mdeditor.css';
+
 import { API_BASE_URL , withApi} from '@/lib/api.ts';
 import{
   Users, 
@@ -145,18 +145,19 @@ interface Blog {
   created_at: string;
 }
 
-const [newBlog, setNewBlog] = useState({
-  title: '',
-  description: '',
-  content: '',
-  is_published: true,
-});
-
-const [blogImage, setBlogImage] = useState<File | null>(null);
-const [blogImagePreview, setBlogImagePreview] = useState<string | null>(null);
-
 
 const AdminDashboardClean = () => {
+    // 🔹 Blog modal states (MUST be inside component)
+  const [newBlog, setNewBlog] = useState({
+    title: '',
+    description: '',
+    content: '',
+    is_published: true,
+  });
+
+  const [blogImage, setBlogImage] = useState<File | null>(null);
+  const [blogImagePreview, setBlogImagePreview] = useState<string | null>(null);
+
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -165,6 +166,7 @@ const AdminDashboardClean = () => {
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [loanApplications, setLoanApplications] = useState<LoanApplication[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [blogs, setBlogs] = useState<any[]>([]);
   const [testimonialVideos, setTestimonialVideos] = useState<TestimonialVideo[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [regulatoryUpdates, setRegulatoryUpdates] = useState<RegulatoryUpdate[]>([]);
