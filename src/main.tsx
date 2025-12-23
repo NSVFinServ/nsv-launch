@@ -16,7 +16,8 @@ import BlogsPage from './components/BlogsPage.tsx';
 import PrivacyPolicy from './components/privacy-policy/page.tsx';
 import AskExpertPage from "./components/askexpert/page.tsx";
 import ReferralPage from './components/referalpage/page.tsx';
-import BlogDetailsPage from './components/BlogDetailsPage.tsx';
+import BlogDetailsPage from './pages/BlogDetailsPage.tsx';
+
 
 import AOS from 'aos';
 import 'aos/dist/aos.css';
