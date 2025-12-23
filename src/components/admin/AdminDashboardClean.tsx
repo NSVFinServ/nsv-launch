@@ -165,7 +165,7 @@ const AdminDashboardClean = () => {
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [loanApplications, setLoanApplications] = useState<LoanApplication[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [blogs, setBlogs] = useState<any[]>([]);
+  const [blogs, setBlogs] = useState<Blog[]>([]);
   const [testimonialVideos, setTestimonialVideos] = useState<TestimonialVideo[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [regulatoryUpdates, setRegulatoryUpdates] = useState<RegulatoryUpdate[]>([]);
@@ -1677,59 +1677,6 @@ const handleAddBlog = async (e: React.FormEvent) => {
                     </CardContent>
                   </Card>
                 </div>
-{/* Blogs */}
-{activeTab === 'blogs' && (
-  <div className="space-y-6">
-    <div className="flex justify-between items-center">
-      <h1 className="text-2xl font-bold text-gray-900">Blogs</h1>
-
-      <button
-  onClick={() => setShowBlogModal(true)}
-  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
->
-  <Plus className="h-4 w-4 mr-2" />
-  Add Blog
-</button>
-
-    </div>
-
-    <Card>
-  <CardContent>
-    {blogs.length === 0 ? (
-      <p className="text-gray-500">No blogs created yet.</p>
-    ) : (
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead>
-          <tr>
-            <th className="text-left py-2">Title</th>
-            <th>Status</th>
-            <th>Date</th>
-            <th className="text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {blogs.map((blog) => (
-            <tr key={blog.id}>
-              <td className="py-2 font-medium">{blog.title}</td>
-              <td>
-                {blog.is_published ? 'Published' : 'Draft'}
-              </td>
-              <td>{formatDate(blog.created_at)}</td>
-              <td className="text-right">
-                <button
-                  onClick={() => handleDeleteBlog(blog.id)}
-                  className="text-red-600"
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    )}
-  </CardContent>
-</Card>
 
 
                 {/* Recent Activity */}
@@ -1781,6 +1728,63 @@ const handleAddBlog = async (e: React.FormEvent) => {
                 </div>
               </div>
             )}
+            {/* Blogs */}
+{activeTab === 'blogs' && (
+  <div className="space-y-6">
+    <div className="flex justify-between items-center">
+      <h1 className="text-2xl font-bold text-gray-900">Blogs</h1>
+
+      <button
+        onClick={() => setShowBlogModal(true)}
+        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        Add Blog
+      </button>
+    </div>
+
+    <Card>
+      <CardContent>
+        {blogs.length === 0 ? (
+          <p className="text-gray-500">No blogs created yet.</p>
+        ) : (
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2 text-left">Title</th>
+                <th className="px-4 py-2">Status</th>
+                <th className="px-4 py-2">Created</th>
+                <th className="px-4 py-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {blogs.map((blog) => (
+                <tr key={blog.id}>
+                  <td className="px-4 py-2 font-medium">{blog.title}</td>
+                  <td className="px-4 py-2">
+                    {blog.is_published ? 'Published' : 'Draft'}
+                  </td>
+                  <td className="px-4 py-2">
+                    {formatDate(blog.created_at)}
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <button
+                      onClick={() => handleDeleteBlog(blog.id)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </CardContent>
+    </Card>
+  </div>
+)}
+
 
             {/* Users List */}
             {activeTab === 'users-list' && (
