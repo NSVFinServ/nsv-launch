@@ -131,6 +131,18 @@ interface DashboardStats {
   recentApplications: number;
   totalClicks: number;
 }
+interface Blog {
+  id: number;
+  title: string;
+  slug: string;
+  description: string;
+  is_published: boolean;
+  created_at: string;
+}
+
+const [blogs, setBlogs] = useState<Blog[]>([]);
+const [showBlogModal, setShowBlogModal] = useState(false);
+
 
 const AdminDashboardClean = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -223,7 +235,8 @@ const AdminDashboardClean = () => {
         videosRes, 
         eventsRes, 
         regulatoryRes,
-        eligibilityRes
+        eligibilityRes,
+        blogsRes
       ] = await Promise.all([
         fetch(`${API_BASE_URL}/users`, { headers }),
         fetch(`${API_BASE_URL}/referrals`, { headers }),
@@ -233,7 +246,8 @@ const AdminDashboardClean = () => {
         fetch(`${API_BASE_URL}/admin/testimonial-videos`, { headers }),
         fetch(`${API_BASE_URL}/admin/events`, { headers }),
         fetch(`${API_BASE_URL}/admin/regulatory-updates`, { headers }),
-        fetch(`${API_BASE_URL}/admin/eligibility`, { headers })
+        fetch(`${API_BASE_URL}/admin/eligibility`, { headers }),
+        fetch(`${API_BASE_URL}/admin/blogs`, { headers })
       ]);
 
       // Check if any admin requests failed due to auth
@@ -255,7 +269,8 @@ const AdminDashboardClean = () => {
       const eventsData = await eventsRes.json();
       const regulatoryData = await regulatoryRes.json();
       const eligibilityData = await eligibilityRes.json();
-
+      const blogsData = await blogsRes.json();
+      setBlogs(blogsData);
       setUsers(usersData);
       setReferrals(referralsData);
       setLoanApplications(applicationsData);
@@ -303,7 +318,23 @@ const AdminDashboardClean = () => {
     localStorage.removeItem('token');
     window.location.href = '/';
   };
+  const handleDeleteBlog = async (id: number) => {
+  if (!window.confirm('Delete this blog?')) return;
 
+  try {
+    await fetch(`${API_BASE_URL}/admin/blogs/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    setBlogs(blogs.filter(b => b.id !== id));
+    showActionMessage('Blog deleted successfully', 'success');
+  } catch (err) {
+    showActionMessage('Failed to delete blog', 'error');
+  }
+};
   // Handle regulatory update deletion
   const handleDeleteRegulatoryUpdate = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this regulatory update? This action cannot be undone.')) {
