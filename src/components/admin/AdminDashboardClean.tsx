@@ -145,6 +145,8 @@ interface Blog {
 
 
 const AdminDashboardClean = () => {
+  
+  const [showBlogModal, setShowBlogModal] = useState(false);
     // 🔹 Blog modal states (MUST be inside component)
   const [newBlog, setNewBlog] = useState({
     title: '',
