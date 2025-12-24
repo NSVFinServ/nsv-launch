@@ -57,9 +57,6 @@ const BlogsSkeleton = ({ count = 6 }: { count?: number }) => (
     ))}
   </div>
 );
-const previewText =
-  stripMarkdown(blog.description || "") ||
-  stripMarkdown(blog.content || "").slice(0, 160);
 
 export default function BlogsPage() {
   const [blogs, setBlogs] = useState<Blog[]>([]);
@@ -203,22 +200,22 @@ export default function BlogsPage() {
 
                 {/* Body */}
                 <div className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                    {blog.title}
-                  </h3>
-
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-3">
-                    {stripMarkdown(blog.description || "")}
-                  </p>
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-3">
-                     {previewText}
-                  </p>
-                  <Link
-                    to={`/blogs/${blog.slug}`}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                  >
-                    Read article →
-                  </Link>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                      {blog.title}
+                    </h3>
+                  
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                      {stripMarkdown(blog.description || "") ||
+                        stripMarkdown(blog.content || "").slice(0, 160)}
+                    </p>
+                  
+                    <Link
+                      to={`/blogs/${blog.slug}`}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                    >
+                      Read article →
+                    </Link>
+                  </div>
                 </div>
               </div>
             ))}
