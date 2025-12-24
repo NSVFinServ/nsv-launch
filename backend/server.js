@@ -78,16 +78,6 @@ app.get('/', (req, res) => res.type('text/plain').send('NSV Finserv API. See /ap
 app.get('/api', (req, res) => res.json({ ok: true, msg: 'API base. Try /api/health' }));
 app.get('/api/health', (req, res) => res.status(200).json({ ok: true, time: Date.now() }));
 
-// ---------- Global error handler (JSON, not HTML) ----------
-app.use((err, req, res, next) => {
-  console.error('UNHANDLED ERROR:', err && err.stack ? err.stack : err);
-  if (res.headersSent) return;
-  res
-    .status(500)
-    .type('application/json')
-    .send(JSON.stringify({ error: 'internal_error', message: err?.message || 'Server error' }));
-});
-
 // ---------- Multer (unchanged) ----------
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -347,6 +337,36 @@ app.get(
     } catch (err) {
       console.error('Admin get blogs error:', err);
       res.status(500).json({ error: 'Failed to fetch blogs' });
+    }
+  }
+);
+// Admin: Delete blog by id
+app.delete(
+  "/api/admin/blogs/:id",
+  authenticateToken,
+  isAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const blogId = Number(id);
+      if (!Number.isFinite(blogId)) {
+        return res.status(400).json({ error: "Invalid blog id" });
+      }
+
+      const [result] = await promisePool.query(
+        "DELETE FROM blogs WHERE id = ?",
+        [blogId]
+      );
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "Blog not found" });
+      }
+
+      return res.json({ message: "Blog deleted successfully" });
+    } catch (err) {
+      console.error("Admin delete blog error:", err);
+      return res.status(500).json({ error: "Failed to delete blog" });
     }
   }
 );
@@ -1889,7 +1909,15 @@ app.post("/api/ask-expert", (req, res) => {
     res.json({ ok: true, message: "Question submitted successfully!", id: result.insertId });
   });
 });
-
+// ---------- Global error handler (JSON, not HTML) ----------
+app.use((err, req, res, next) => {
+  console.error('UNHANDLED ERROR:', err && err.stack ? err.stack : err);
+  if (res.headersSent) return;
+  res
+    .status(500)
+    .type('application/json')
+    .send(JSON.stringify({ error: 'internal_error', message: err?.message || 'Server error' }));
+});
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
