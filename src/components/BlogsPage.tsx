@@ -141,7 +141,15 @@ export default function BlogsPage() {
           </p>
         </div>
       </div>
-
+      {/*Back to Home Page*/}
+      <div className="bg-white shadow-sm">
+        <div className="max-w-4xl mx-auto px-4 py-6">
+      <Link to="/" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Home
+          </Link>
+        </div>
+      </div>
       {/* CONTENT */}
       <div className="max-w-7xl mx-auto px-6 py-14">
         {loading && <BlogsSkeleton count={6} />}
