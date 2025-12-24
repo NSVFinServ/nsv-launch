@@ -37,7 +37,15 @@ const BlogsPage = () => {
           </p>
         </div>
       </div>
-
+      {/*Back to Home*/}
+      <Link
+          to="/"
+          className="inline-flex items-center text-gray-900 hover:text-gray-500 mb-6"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Home
+        </Link>
+      
       {/* CONTENT */}
       <div className="max-w-7xl mx-auto px-6 py-14">
 
