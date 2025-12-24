@@ -22,6 +22,10 @@ const BlogsPage = () => {
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
   }, []);
+  const res = await fetch(`${API_BASE_URL}/blogs`);
+if (!res.ok) throw new Error(`Failed (${res.status})`);
+const data = await res.json();
+setBlogs(data);
 
   return (
     <div className="min-h-screen bg-gray-50">
