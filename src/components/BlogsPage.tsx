@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { API_BASE_URL } from "@/lib/api";
+import { ArrowLeft } from 'lucide-react';
 
 interface Blog {
   id: number;
