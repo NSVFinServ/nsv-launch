@@ -217,7 +217,6 @@ export default function BlogsPage() {
                     </Link>
                   </div>
                 </div>
-              </div>
             ))}
           </div>
         )}
