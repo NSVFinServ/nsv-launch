@@ -143,11 +143,11 @@ export default function BlogsPage() {
         <meta name="twitter:description" content={description} />
 
         {/* JSON-LD */}
-        <script type="application/ld+json">
-          {JSON.stringify({blogListJsonLd && (
-  <script type="application/ld+json">{JSON.stringify(blogListJsonLd)}</script>
+       {blogListJsonLd && (
+  <script type="application/ld+json">
+    {JSON.stringify(blogListJsonLd)}
+  </script>
 )}
-        </script>
       </Helmet>
 
       {/* HERO */}
