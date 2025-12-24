@@ -138,9 +138,20 @@ interface Blog {
   title: string;
   slug: string;
   description: string;
+  content?: string;
+
+  author?: string;
+  category?: string;
+  thumbnail?: string;
+
+  meta_title?: string;
+  meta_description?: string;
+  keywords?: string;
+
   is_published: boolean;
   created_at: string;
 }
+
 
 
 const AdminDashboardClean = () => {
@@ -339,39 +350,74 @@ const handleAddBlog = async (e: React.FormEvent) => {
 
   try {
     const formData = new FormData();
-    formData.append('title', newBlog.title);
-    formData.append('description', newBlog.description);
-    formData.append('content', newBlog.content);
-    formData.append('is_published', newBlog.is_published ? '1' : '0');
 
+    // Required / core
+    formData.append("title", newBlog.title);
+    formData.append("description", newBlog.description); // maps to DB: description
+    formData.append("content", newBlog.content);
+    formData.append("is_published", newBlog.is_published ? "1" : "0");
+
+    // Optional fields supported by your backend + DB
+    if (newBlog.author?.trim()) formData.append("author", newBlog.author.trim());
+    if (newBlog.category?.trim()) formData.append("category", newBlog.category.trim());
+
+    // SEO fields (fallbacks are helpful)
+    const metaTitle = newBlog.meta_title?.trim() || newBlog.title?.trim();
+    const metaDesc = newBlog.meta_description?.trim() || newBlog.description?.trim();
+
+    if (metaTitle) formData.append("meta_title", metaTitle);
+    if (metaDesc) formData.append("meta_description", metaDesc);
+
+    if (newBlog.keywords?.trim()) {
+      // keep as comma-separated string in DB
+      formData.append("keywords", newBlog.keywords.trim());
+    }
+
+    // Thumbnail upload
     if (blogImage) {
-      formData.append('thumbnail', blogImage);
+      formData.append("thumbnail", blogImage);
     }
 
     const response = await fetch(`${API_BASE_URL}/admin/blogs`, {
-      method: 'POST',
+      method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
+        // DO NOT set Content-Type manually for FormData
       },
       body: formData,
     });
 
     if (!response.ok) {
-      throw new Error('Failed to create blog');
+      const msg = await response.text();
+      throw new Error(msg || "Failed to create blog");
     }
 
     setShowBlogModal(false);
-    setNewBlog({ title: '', description: '', content: '', is_published: true });
+
+    // Reset form (include new fields too)
+    setNewBlog({
+      title: "",
+      description: "",
+      content: "",
+      author: "",
+      category: "",
+      meta_title: "",
+      meta_description: "",
+      keywords: "",
+      is_published: true,
+    });
+
     setBlogImage(null);
     setBlogImagePreview(null);
 
     fetchAllData();
-    showActionMessage('Blog created successfully', 'success');
+    showActionMessage("Blog created successfully", "success");
   } catch (err) {
     console.error(err);
-    showActionMessage('Failed to create blog', 'error');
+    showActionMessage("Failed to create blog", "error");
   }
 };
+
 
 
   // Handle logout
