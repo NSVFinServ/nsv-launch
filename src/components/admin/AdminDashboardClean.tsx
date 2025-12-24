@@ -159,11 +159,16 @@ const AdminDashboardClean = () => {
   const [showBlogModal, setShowBlogModal] = useState(false);
     // 🔹 Blog modal states (MUST be inside component)
   const [newBlog, setNewBlog] = useState({
-    title: '',
-    description: '',
-    content: '',
-    is_published: true,
-  });
+  title: "",
+  description: "",
+  content: "",
+  author: "",
+  category: "",
+  meta_title: "",
+  meta_description: "",
+  keywords: "",
+  is_published: true,
+});
 
   const [blogImage, setBlogImage] = useState<File | null>(null);
   const [blogImagePreview, setBlogImagePreview] = useState<string | null>(null);
@@ -1122,6 +1127,61 @@ const handleAddBlog = async (e: React.FormEvent) => {
             />
           </div>
 
+          {/* Optional: Slug preview (auto-generated in backend anyway) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Slug (auto)
+            </label>
+            <input
+              type="text"
+              value={
+                (newBlog.title || "")
+                  .toLowerCase()
+                  .trim()
+                  .replace(/[^a-z0-9]+/g, "-")
+                  .replace(/^-|-$/g, "")
+              }
+              className="w-full px-3 py-2 border rounded-md bg-gray-50 text-gray-600"
+              readOnly
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              This is generated from the title and saved by the backend.
+            </p>
+          </div>
+
+          {/* Author + Category */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Author
+              </label>
+              <input
+                type="text"
+                value={newBlog.author || ""}
+                onChange={(e) =>
+                  setNewBlog({ ...newBlog, author: e.target.value })
+                }
+                className="w-full px-3 py-2 border rounded-md"
+                placeholder="NSV Finserv Team"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category
+              </label>
+              <input
+                type="text"
+                value={newBlog.category || ""}
+                onChange={(e) =>
+                  setNewBlog({ ...newBlog, category: e.target.value })
+                }
+                className="w-full px-3 py-2 border rounded-md"
+                placeholder="Loans / CIBIL / Eligibility"
+              />
+            </div>
+          </div>
+
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1134,6 +1194,7 @@ const handleAddBlog = async (e: React.FormEvent) => {
                 setNewBlog({ ...newBlog, description: e.target.value })
               }
               className="w-full px-3 py-2 border rounded-md"
+              placeholder="This will show on the blog card and can also be used for SEO."
             />
           </div>
 
@@ -1152,23 +1213,73 @@ const handleAddBlog = async (e: React.FormEvent) => {
             )}
           </div>
 
-          {/* Content Editor */}
+          {/* Blog Content */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Blog Content *
             </label>
-       <textarea
-  value={newBlog.content}
-  onChange={(e) =>
-    setNewBlog({ ...newBlog, content: e.target.value })
-  }
-  rows={12}
-  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-  placeholder="Write blog content here..."
-  required
-/>
+            <textarea
+              value={newBlog.content}
+              onChange={(e) =>
+                setNewBlog({ ...newBlog, content: e.target.value })
+              }
+              rows={12}
+              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Write blog content here..."
+              required
+            />
+          </div>
 
+          {/* SEO fields */}
+          <div className="border rounded-md p-4 bg-gray-50">
+            <p className="text-sm font-medium text-gray-800 mb-3">SEO Settings (optional)</p>
 
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Meta Title
+                </label>
+                <input
+                  type="text"
+                  value={newBlog.meta_title || ""}
+                  onChange={(e) =>
+                    setNewBlog({ ...newBlog, meta_title: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="Defaults to Blog Title if left empty"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Meta Description
+                </label>
+                <textarea
+                  rows={2}
+                  value={newBlog.meta_description || ""}
+                  onChange={(e) =>
+                    setNewBlog({ ...newBlog, meta_description: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="Defaults to Short Description if left empty"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Keywords (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={newBlog.keywords || ""}
+                  onChange={(e) =>
+                    setNewBlog({ ...newBlog, keywords: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="loan, emi, cibil, interest rate"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Publish Toggle */}
