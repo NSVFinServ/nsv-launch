@@ -12,7 +12,7 @@ import AdminDashboardClean from './components/admin/AdminDashboardClean.tsx';
 import TestEmailPage from './components/test-email/page.tsx';
 import EmailDisplayPage from './components/email-display/page.tsx';
 import TermsConditions from './components/terms-conditions/page.tsx';
-import BlogsPage from './pages/Blogs';
+import BlogsPage from './components/BlogsPage';
 import BlogDetailsPage from './pages/BlogDetailsPage';
 import PrivacyPolicy from './components/privacy-policy/page.tsx';
 import AskExpertPage from "./components/askexpert/page.tsx";
@@ -40,8 +40,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/" element={<App />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
-       <Route path="/blogs" element={<BlogsPage />} />
-  <Route path="/blogs/:slug" element={<BlogDetailsPage />} />
+        <Route path="/blogs" element={<BlogsPage />} />
+        <Route path="/blogs/:slug" element={<BlogDetailsPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/loan-application" element={<LoanApplicationPage />} />
