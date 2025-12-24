@@ -8,9 +8,21 @@ interface Blog {
   id: number;
   title: string;
   slug: string;
-  excerpt?: string | null;
+
+  description?: string | null;  // ✅ DB column
+  content?: string | null;      // (optional for list)
+
   thumbnail?: string | null;
   created_at?: string | null;
+
+  author?: string | null;
+  category?: string | null;
+
+  meta_title?: string | null;
+  meta_description?: string | null;
+  keywords?: string | null;
+
+  is_published?: number | boolean;
 }
 
 const resolveUrl = (url?: string | null): string => {
@@ -45,6 +57,9 @@ const BlogsSkeleton = ({ count = 6 }: { count?: number }) => (
     ))}
   </div>
 );
+const previewText =
+  stripMarkdown(blog.description || "") ||
+  stripMarkdown(blog.content || "").slice(0, 160);
 
 export default function BlogsPage() {
   const [blogs, setBlogs] = useState<Blog[]>([]);
@@ -93,20 +108,22 @@ export default function BlogsPage() {
 
   // --- JSON-LD for Blog list ---
   const blogListJsonLd = useMemo(() => {
-    const items = blogs.slice(0, 20).map((b, idx) => ({
-      "@type": "ListItem",
-      position: idx + 1,
-      url: `${siteBase}/blogs/${b.slug}`,
-      name: b.title,
-    }));
+  if (!blogs.length) return null;
 
-    return {
-      "@context": "https://schema.org",
-      "@type": "ItemList",
-      name: "NSV Finserv Blog",
-      itemListElement: items,
-    };
-  }, [blogs]);
+  const items = blogs.slice(0, 20).map((b, idx) => ({
+    "@type": "ListItem",
+    position: idx + 1,
+    url: `${siteBase}/blogs/${b.slug}`,
+    name: b.title,
+  }));
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "NSV Finserv Blog",
+    itemListElement: items,
+  };
+}, [blogs]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -127,7 +144,9 @@ export default function BlogsPage() {
 
         {/* JSON-LD */}
         <script type="application/ld+json">
-          {JSON.stringify(blogListJsonLd)}
+          {JSON.stringify({blogListJsonLd && (
+  <script type="application/ld+json">{JSON.stringify(blogListJsonLd)}</script>
+)}
         </script>
       </Helmet>
 
@@ -189,9 +208,11 @@ export default function BlogsPage() {
                   </h3>
 
                   <p className="text-sm text-gray-600 mb-4 line-clamp-3">
-                    {stripMarkdown(blog.excerpt || "")}
+                    {stripMarkdown(blog.description || "")}
                   </p>
-
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                     {previewText}
+                  </p>
                   <Link
                     to={`/blogs/${blog.slug}`}
                     className="text-sm font-medium text-blue-600 hover:text-blue-800"
