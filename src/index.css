@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* React Quill dropdown scroll fix */
+.ql-picker-options {
+  max-height: 200px;      /* adjust if needed */
+  overflow-y: auto;
+}
+
+.ql-picker-options::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ql-picker-options::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1; /* tailwind gray-300 */
+  border-radius: 4px;
+}
+
+.ql-picker-options::-webkit-scrollbar-track {
+  background: transparent;
+}
