@@ -1,72 +1,78 @@
-import React, { useState, useEffect } from 'react';
-import { API_BASE_URL} from '@/lib/api.ts';
-import{
-  Users, 
-  FileText, 
-  TrendingUp, 
-  Calendar, 
-  Video, 
-  BookOpen, 
+import React, { useEffect, useMemo, useState } from "react";
+import { API_BASE_URL } from "@/lib/api";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
+
+import {
   BarChart3,
   Bell,
-  Settings,
+  BookOpen,
+  Calendar,
+  Calculator,
+  FileText,
   LogOut,
   Menu,
-  X,
+  Newspaper,
   Plus,
   Search,
-  Eye,
-  Edit,
-  Trash2,
+  Settings,
   Star,
-  Check,
-  X as XIcon,
-  Calculator
-} from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Newspaper } from 'lucide-react';
+  Trash2,
+  TrendingUp,
+  Users,
+  Video,
+  X,
+} from "lucide-react";
 
+type ActionType = "success" | "error";
 
+interface DashboardStats {
+  totalUsers: number;
+  totalReferrals: number;
+  totalApplications: number;
+  recentUsers: number;
+  recentApplications: number;
+  totalClicks: number;
+}
 
-// Define TypeScript interfaces
 interface User {
   id: number;
   name: string;
   email: string;
-  phone: string;
+  phone?: string;
   created_at: string;
 }
 
 interface Referral {
   id: number;
-  referrer_name: string;
-  referrer_email: string;
-  referrer_phone: string;
-  referred_name: string;
-  referred_email: string;
-  referred_phone: string;
-  status: string;
+  referrer_name?: string;
+  referrer_email?: string;
+  referrer_phone?: string;
+  referred_name?: string;
+  referred_email?: string;
+  referred_phone?: string;
+  status?: string;
   created_at: string;
 }
 
 interface LoanApplication {
   id: number;
-  user_name: string;
-  user_email: string;
-  service_name: string;
-  amount: number;
-  status: string;
-  submitted_at: string;
+  user_name?: string;
+  user_email?: string;
+  service_name?: string;
+  amount?: number;
+  status?: string;
+  submitted_at?: string;
 }
 
 interface Review {
   id: number;
-  name: string;
-  email: string;
-  phone: string;
-  rating: number;
-  review_text: string;
-  status: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  rating?: number;
+  review_text?: string;
+  status?: string;
   created_at: string;
   is_approved?: boolean;
   location?: string;
@@ -84,14 +90,14 @@ interface TestimonialVideo {
   is_active: boolean;
   display_order: number;
   created_at: string;
-  image_url?: string;
+  image_url?: string | null;
 }
 
-interface Event {
+interface EventItem {
   id: number;
   title: string;
   description: string;
-  image_url: string;
+  image_url?: string | null;
   event_date: string;
   is_active: boolean;
   display_order: number;
@@ -102,7 +108,7 @@ interface RegulatoryUpdate {
   id: number;
   title: string;
   content: string;
-  category: 'RBI' | 'GST';
+  category: "RBI" | "GST";
   is_active: boolean;
   display_order: number;
   created_at: string;
@@ -112,7 +118,7 @@ interface EligibilitySubmission {
   id: number;
   name: string;
   phone: string;
-  email: string;
+  email?: string;
   monthly_salary: number;
   existing_emi: number;
   age: number;
@@ -121,287 +127,281 @@ interface EligibilitySubmission {
   desired_tenure_years: number;
   eligible_loan_amount: number;
   affordable_emi: number;
-  status: string;
+  status?: string;
   created_at: string;
 }
 
-interface DashboardStats {
-  totalUsers: number;
-  totalReferrals: number;
-  totalApplications: number;
-  recentUsers: number;
-  recentApplications: number;
-  totalClicks: number;
-}
 interface Blog {
   id: number;
   title: string;
   slug: string;
   description: string;
   content?: string;
-
-  author?: string;
-  category?: string;
-  thumbnail?: string;
-
-  meta_title?: string;
-  meta_description?: string;
-  keywords?: string;
-
+  author?: string | null;
+  category?: string | null;
+  thumbnail?: string | null;
+  meta_title?: string | null;
+  meta_description?: string | null;
+  keywords?: string | null;
   is_published: boolean;
   created_at: string;
 }
 
+const slugify = (s: string) =>
+  s
+    .toLowerCase()
+    .trim()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
+const quillModules = {
+  toolbar: [
+    ["bold", "italic", "underline", "strike"],
+    [{ list: "bullet" }, { list: "ordered" }],
+    [{ header: [1, 2, 3, 4, false] }],
+    [{ align: [] }],
+    ["link"],
+    ["clean"],
+  ],
+};
 
-const AdminDashboardClean = () => {
-  
-  const [showBlogModal, setShowBlogModal] = useState(false);
-    // 🔹 Blog modal states (MUST be inside component)
-  const [newBlog, setNewBlog] = useState({
-  title: "",
-  description: "",
-  content: "",
-  author: "",
-  category: "",
-  meta_title: "",
-  meta_description: "",
-  keywords: "",
-  is_published: true,
-});
+const quillFormats = [
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "list",
+  "bullet",
+  "header",
+  "align",
+  "link",
+];
 
-  const [blogImage, setBlogImage] = useState<File | null>(null);
-  const [blogImagePreview, setBlogImagePreview] = useState<string | null>(null);
+function fmtDate(dateString?: string) {
+  if (!dateString) return "-";
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return dateString;
+  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
 
-  const [activeTab, setActiveTab] = useState('overview');
+function fmtCurrencyINR(amount?: number) {
+  if (amount === undefined || amount === null) return "-";
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+async function safeJson(res: Response) {
+  const text = await res.text();
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return text;
+  }
+}
+
+export default function AdminDashboardClean() {
+  const token = localStorage.getItem("token");
+
+  // layout
+  const [activeTab, setActiveTab] = useState<
+    | "overview"
+    | "blogs"
+    | "regulatory"
+    | "events"
+    | "videos"
+    | "users-list"
+    | "reviews"
+    | "applications"
+    | "referrals"
+    | "eligibility"
+  >("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // data
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [loanApplications, setLoanApplications] = useState<LoanApplication[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [videos, setVideos] = useState<TestimonialVideo[]>([]);
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [regulatory, setRegulatory] = useState<RegulatoryUpdate[]>([]);
+  const [eligibility, setEligibility] = useState<EligibilitySubmission[]>([]);
   const [blogs, setBlogs] = useState<Blog[]>([]);
-  const [testimonialVideos, setTestimonialVideos] = useState<TestimonialVideo[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [regulatoryUpdates, setRegulatoryUpdates] = useState<RegulatoryUpdate[]>([]);
-  const [eligibilitySubmissions, setEligibilitySubmissions] = useState<EligibilitySubmission[]>([]);
-  const [actionStatus, setActionStatus] = useState<{message: string, type: 'success' | 'error'} | null>(null);
 
-  // Form states
-  const [newEvent, setNewEvent] = useState({
-    title: '',
-    description: '',
-    image_url: '',
-    event_date: '',
-    display_order: 0,
-    is_active: true
-  });
-  
-  const [eventImage, setEventImage] = useState<File | null>(null);
-  const [eventImagePreview, setEventImagePreview] = useState<string | null>(null);
-  
-  const [newVideo, setNewVideo] = useState({
-    title: '',
-    video_url: '',
-    customer_name: '',
-    customer_location: '',
-    description: '',
-    display_order: 0,
-    is_active: true
-  });
-  
-  const [videoImage, setVideoImage] = useState<File | null>(null);
-  const [videoImagePreview, setVideoImagePreview] = useState<string | null>(null);
-  
-  const [newRegulatoryUpdate, setNewRegulatoryUpdate] = useState({
-    title: '',
-    content: '',
-    category: 'RBI' as 'RBI' | 'GST',
-    display_order: 0,
-    is_active: true
-  });
+  // ui feedback
+  const [actionStatus, setActionStatus] = useState<{ message: string; type: ActionType } | null>(null);
 
-  // Modal states
+  // search
+  const [search, setSearch] = useState("");
+
+  // modals
+  const [showBlogModal, setShowBlogModal] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [showRegulatoryModal, setShowRegulatoryModal] = useState(false);
 
-  // Get JWT token from localStorage
-  const token = localStorage.getItem('token');
-  
-  useEffect(() => {
-    if (!token) {
-      console.warn('No authentication token found');
-      showActionMessage('Authentication required. Please log in again.', 'error');
-      // Redirect to login
-      window.location.href = '/login';
-    }
+  // blog form
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [blogImage, setBlogImage] = useState<File | null>(null);
+  const [blogImagePreview, setBlogImagePreview] = useState<string | null>(null);
+  const [newBlog, setNewBlog] = useState({
+    title: "",
+    slug: "",
+    description: "",
+    content: "",
+    author: "",
+    category: "",
+    meta_title: "",
+    meta_description: "",
+    keywords: "",
+    is_published: true,
+  });
+
+  // event form
+  const [eventImage, setEventImage] = useState<File | null>(null);
+  const [eventImagePreview, setEventImagePreview] = useState<string | null>(null);
+  const [newEvent, setNewEvent] = useState({
+    title: "",
+    description: "",
+    event_date: "",
+    display_order: 0,
+    is_active: true,
+  });
+
+  // video form
+  const [videoImage, setVideoImage] = useState<File | null>(null);
+  const [videoImagePreview, setVideoImagePreview] = useState<string | null>(null);
+  const [newVideo, setNewVideo] = useState({
+    title: "",
+    video_url: "",
+    customer_name: "",
+    customer_location: "",
+    description: "",
+    display_order: 0,
+    is_active: true,
+  });
+
+  // regulatory form
+  const [newRegulatory, setNewRegulatory] = useState({
+    title: "",
+    content: "",
+    category: "RBI" as "RBI" | "GST",
+    display_order: 0,
+    is_active: true,
+  });
+
+  const headersJson = useMemo(() => {
+    const h: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) h.Authorization = `Bearer ${token}`;
+    return h;
   }, [token]);
 
-  // Fetch all data
-  useEffect(() => {
-    fetchAllData();
-  }, []);
+  const headersAuthOnly = useMemo(() => {
+    const h: Record<string, string> = {};
+    if (token) h.Authorization = `Bearer ${token}`;
+    return h;
+  }, [token]);
+
+  const showActionMessage = (message: string, type: ActionType) => {
+    setActionStatus({ message, type });
+    window.setTimeout(() => setActionStatus(null), 3000);
+  };
+
+  const guardAuth = () => {
+    if (!token) {
+      showActionMessage("Authentication required. Please log in again.", "error");
+      window.location.href = "/login";
+      return false;
+    }
+    return true;
+  };
 
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
 
-      console.log('Fetching data with token:', token ? 'Token present' : 'No token');
-      
-      // Fetch all data in parallel
+      // Admin endpoints require token; public ones can be fetched without.
+      // We fetch admin list endpoints with token.
       const [
-        usersRes, 
-        referralsRes, 
-        applicationsRes, 
-        statsRes, 
-        reviewsRes, 
-        videosRes, 
-        eventsRes, 
+        statsRes,
+        usersRes,
+        referralsRes,
+        applicationsRes,
+        reviewsRes,
+        videosRes,
+        eventsRes,
         regulatoryRes,
         eligibilityRes,
-        blogsRes
+        blogsRes,
       ] = await Promise.all([
-        fetch(`${API_BASE_URL}/users`, { headers }),
-        fetch(`${API_BASE_URL}/referrals`, { headers }),
-        fetch(`${API_BASE_URL}/loan-applications`, { headers }),
-        fetch(`${API_BASE_URL}/dashboard-stats`, { headers }),
-        fetch(`${API_BASE_URL}/admin/reviews`, { headers }),
-        fetch(`${API_BASE_URL}/admin/testimonial-videos`, { headers }),
-        fetch(`${API_BASE_URL}/admin/events`, { headers }),
-        fetch(`${API_BASE_URL}/admin/regulatory-updates`, { headers }),
-        fetch(`${API_BASE_URL}/admin/eligibility`, { headers }),
-        fetch(`${API_BASE_URL}/admin/blogs`, { headers })
+        fetch(`${API_BASE_URL}/dashboard-stats`, { headers: headersJson }),
+        fetch(`${API_BASE_URL}/users`, { headers: headersJson }),
+        fetch(`${API_BASE_URL}/referrals`, { headers: headersJson }),
+        fetch(`${API_BASE_URL}/loan-applications`, { headers: headersJson }),
+        fetch(`${API_BASE_URL}/admin/reviews`, { headers: headersJson }),
+        fetch(`${API_BASE_URL}/admin/testimonial-videos`, { headers: headersJson }),
+        fetch(`${API_BASE_URL}/admin/events`, { headers: headersJson }),
+        fetch(`${API_BASE_URL}/admin/regulatory-updates`, { headers: headersJson }),
+        fetch(`${API_BASE_URL}/admin/eligibility`, { headers: headersJson }),
+        fetch(`${API_BASE_URL}/admin/blogs`, { headers: headersJson }),
       ]);
 
-      // Check if any admin requests failed due to auth
-      const adminResponses = [reviewsRes, videosRes, eventsRes, regulatoryRes, eligibilityRes];
-      for (const res of adminResponses) {
-        if (!res.ok && res.status === 401) {
-          console.error('Authentication failed for admin endpoint');
-          showActionMessage('Authentication failed. Please log in again.', 'error');
-          return;
-        }
-      }
+      if (!statsRes.ok) throw new Error("Failed to load dashboard stats");
+      if (!usersRes.ok) throw new Error("Failed to load users");
+      if (!referralsRes.ok) throw new Error("Failed to load referrals");
+      if (!applicationsRes.ok) throw new Error("Failed to load loan applications");
+      if (!reviewsRes.ok) throw new Error("Failed to load reviews");
+      if (!videosRes.ok) throw new Error("Failed to load testimonial videos");
+      if (!eventsRes.ok) throw new Error("Failed to load events");
+      if (!regulatoryRes.ok) throw new Error("Failed to load regulatory updates");
+      if (!eligibilityRes.ok) throw new Error("Failed to load eligibility submissions");
+      if (!blogsRes.ok) throw new Error("Failed to load blogs");
 
-      const usersData = await usersRes.json();
-      const referralsData = await referralsRes.json();
-      const applicationsData = await applicationsRes.json();
-      const statsData = await statsRes.json();
-      const reviewsData = await reviewsRes.json();
-      const videosData = await videosRes.json();
-      const eventsData = await eventsRes.json();
-      const regulatoryData = await regulatoryRes.json();
-      const eligibilityData = await eligibilityRes.json();
-      const blogsData = await blogsRes.json();
-      setBlogs(blogsData);
-      setUsers(usersData);
-      setReferrals(referralsData);
-      setLoanApplications(applicationsData);
-      setStats(statsData);
-      setReviews(reviewsData);
-      setTestimonialVideos(videosData);
-      setEvents(eventsData);
-      setRegulatoryUpdates(regulatoryData);
-      setEligibilitySubmissions(eligibilityData);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      showActionMessage('Failed to load data', 'error');
+      setStats(await statsRes.json());
+      setUsers(await usersRes.json());
+      setReferrals(await referralsRes.json());
+      setLoanApplications(await applicationsRes.json());
+      setReviews(await reviewsRes.json());
+      setVideos(await videosRes.json());
+      setEvents(await eventsRes.json());
+      setRegulatory(await regulatoryRes.json());
+      setEligibility(await eligibilityRes.json());
+      setBlogs(await blogsRes.json());
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to load dashboard data.", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  // Show action message
-  const showActionMessage = (message: string, type: 'success' | 'error') => {
-    setActionStatus({ message, type });
-    setTimeout(() => setActionStatus(null), 3000);
-  };
+  useEffect(() => {
+    if (!guardAuth()) return;
+    fetchAllData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
-  // Format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
+  // ---------- handlers: blog ----------
   const handleBlogImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  if (e.target.files && e.target.files[0]) {
-    const file = e.target.files[0];
-    setBlogImage(file);
-
-    const reader = new FileReader();
-    reader.onload = () => setBlogImagePreview(reader.result as string);
-    reader.readAsDataURL(file);
-  }
-};
-const handleAddBlog = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  try {
-    const formData = new FormData();
-
-    // Required / core
-    formData.append("title", newBlog.title);
-    formData.append("description", newBlog.description); // maps to DB: description
-    formData.append("content", newBlog.content);
-    formData.append("is_published", newBlog.is_published ? "1" : "0");
-
-    // Optional fields supported by your backend + DB
-    if (newBlog.author?.trim()) formData.append("author", newBlog.author.trim());
-    if (newBlog.category?.trim()) formData.append("category", newBlog.category.trim());
-
-    // SEO fields (fallbacks are helpful)
-    const metaTitle = newBlog.meta_title?.trim() || newBlog.title?.trim();
-    const metaDesc = newBlog.meta_description?.trim() || newBlog.description?.trim();
-
-    if (metaTitle) formData.append("meta_title", metaTitle);
-    if (metaDesc) formData.append("meta_description", metaDesc);
-
-    if (newBlog.keywords?.trim()) {
-      // keep as comma-separated string in DB
-      formData.append("keywords", newBlog.keywords.trim());
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setBlogImage(file);
+      const reader = new FileReader();
+      reader.onload = () => setBlogImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
     }
+  };
 
-    // Thumbnail upload
-    if (blogImage) {
-      formData.append("thumbnail", blogImage);
-    }
-
-    const response = await fetch(`${API_BASE_URL}/admin/blogs`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        // DO NOT set Content-Type manually for FormData
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const msg = await response.text();
-      throw new Error(msg || "Failed to create blog");
-    }
-
-    setShowBlogModal(false);
-
-    // Reset form (include new fields too)
+  const resetBlogModal = () => {
     setNewBlog({
       title: "",
+      slug: "",
       description: "",
       content: "",
       author: "",
@@ -411,678 +411,494 @@ const handleAddBlog = async (e: React.FormEvent) => {
       keywords: "",
       is_published: true,
     });
-
+    setSlugTouched(false);
     setBlogImage(null);
     setBlogImagePreview(null);
-
-    fetchAllData();
-    showActionMessage("Blog created successfully", "success");
-  } catch (err) {
-    console.error(err);
-    showActionMessage("Failed to create blog", "error");
-  }
-};
-
-
-
-  // Handle logout
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    window.location.href = '/';
   };
+
+  const handleAddBlog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guardAuth()) return;
+
+    try {
+      if (!newBlog.title.trim()) return showActionMessage("Blog title is required.", "error");
+      if (!newBlog.slug.trim()) return showActionMessage("Slug is required.", "error");
+      if (!newBlog.content.trim()) return showActionMessage("Content is required.", "error");
+
+      const formData = new FormData();
+      formData.append("title", newBlog.title.trim());
+      formData.append("slug", newBlog.slug.trim());
+      formData.append("description", newBlog.description || "");
+      formData.append("content", newBlog.content);
+      formData.append("author", newBlog.author || "");
+      formData.append("category", newBlog.category || "");
+      formData.append("meta_title", (newBlog.meta_title || "").trim() || newBlog.title.trim());
+      formData.append("meta_description", (newBlog.meta_description || "").trim() || (newBlog.description || ""));
+      formData.append("keywords", newBlog.keywords || "");
+      formData.append("is_published", newBlog.is_published ? "1" : "0");
+      if (blogImage) formData.append("thumbnail", blogImage);
+
+      const res = await fetch(`${API_BASE_URL}/admin/blogs`, {
+        method: "POST",
+        headers: headersAuthOnly,
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const msg = await safeJson(res);
+        console.error(msg);
+        throw new Error(typeof msg === "string" ? msg : "Failed to create blog");
+      }
+
+      showActionMessage("Blog created successfully.", "success");
+      setShowBlogModal(false);
+      resetBlogModal();
+      fetchAllData();
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to create blog.", "error");
+    }
+  };
+
   const handleDeleteBlog = async (id: number) => {
-  if (!window.confirm('Delete this blog?')) return;
-
-  try {
-    await fetch(`${API_BASE_URL}/admin/blogs/${id}`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    setBlogs(blogs.filter(b => b.id !== id));
-    showActionMessage('Blog deleted successfully', 'success');
-  } catch (err) {
-    showActionMessage('Failed to delete blog', 'error');
-  }
-};
-  // Handle regulatory update deletion
-  const handleDeleteRegulatoryUpdate = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this regulatory update? This action cannot be undone.')) {
-      return;
-    }
+    if (!guardAuth()) return;
+    if (!window.confirm("Delete this blog?")) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/regulatory-updates/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const res = await fetch(`${API_BASE_URL}/admin/blogs/${id}`, {
+        method: "DELETE",
+        headers: headersAuthOnly,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Failed to delete regulatory update: ${errorData.error || response.statusText}`);
-      }
-
-      // Remove the update from local state
-      setRegulatoryUpdates(regulatoryUpdates.filter((update: RegulatoryUpdate) => update.id !== id));
-
-      showActionMessage('Regulatory update deleted successfully', 'success');
-    } catch (err: any) {
-      console.error('Error deleting regulatory update:', err);
-      showActionMessage(err.message || 'Failed to delete regulatory update', 'error');
+      if (!res.ok) throw new Error("Delete failed");
+      setBlogs((prev) => prev.filter((b) => b.id !== id));
+      showActionMessage("Blog deleted.", "success");
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to delete blog.", "error");
     }
   };
 
-  // Handle referral status update
-  const handleUpdateReferralStatus = async (id: number, status: 'pending' | 'accepted' | 'rejected') => {
+  // ---------- handlers: reviews ----------
+  const handleApproveReview = async (id: number) => {
+    if (!guardAuth()) return;
     try {
-      console.log('Updating referral status:', { id, status });
-      
-      // First, get the current referral to check its state
-      const currentReferral = referrals.find((r: Referral) => r.id === id);
-      console.log('Current referral:', currentReferral);
-      
-      // Check if we have a valid token
-      if (!token) {
-        throw new Error('No authentication token. Please log in again.');
-      }
-      
-      // Fixed the endpoint URL - it was missing the /api prefix
-      // Fixed the endpoint URL - it was missing the /api prefix
-      const response = await fetch(`${API_BASE_URL}/admin/referrals/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status })
+      const res = await fetch(`${API_BASE_URL}/admin/reviews/${id}/approve`, {
+        method: "PATCH",
+        headers: headersJson,
+        body: JSON.stringify({ is_approved: true }),
       });
-
-      console.log('Response status:', response.status);
-      
-      // Check for network errors
-      if (!response.ok) {
-        if (response.status === 0) {
-          throw new Error('Network error - server may be unreachable');
-        }
-        
-        // Try to get error details
-        let errorDetails = '';
-        try {
-          const errorData = await response.json();
-          errorDetails = errorData.error || response.statusText;
-          console.error('Error response data:', errorData);
-        } catch (parseError) {
-          errorDetails = `HTTP ${response.status}: ${response.statusText}`;
-        }
-        
-        throw new Error(`Failed to update referral status: ${errorDetails}`);
-      }
-
-      const result = await response.json();
-      console.log('Update result:', result);
-
-      // Update local state
-      setReferrals(referrals.map((referral: Referral) => 
-        referral.id === id ? { ...referral, status } : referral
-      ));
-
-      showActionMessage(`Referral ${status} successfully`, 'success');
-      
-      // Refresh data to ensure consistency
-      setTimeout(() => {
-        fetchAllData();
-      }, 1000);
-    } catch (err: any) {
-      console.error('Error updating referral status:', err);
-      
-      // Provide more specific error messages
-      let errorMessage = 'Failed to update referral status';
-      if (err instanceof TypeError && err.message.includes('fetch')) {
-        errorMessage = 'Network error - please check your connection';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      showActionMessage(errorMessage, 'error');
+      if (!res.ok) throw new Error("Approve failed");
+      setReviews((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, is_approved: true, status: "approved" } : r))
+      );
+      showActionMessage("Review approved.", "success");
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to approve review.", "error");
     }
   };
 
-  // Handle loan application status update
-  const handleUpdateLoanApplicationStatus = async (id: number, status: 'pending' | 'approved' | 'rejected') => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/admin/loan-applications/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Failed to update loan application status: ${errorData.error || response.statusText}`);
-      }
-
-      // Update local state
-      setLoanApplications(loanApplications.map((application: LoanApplication) => 
-        application.id === id ? { ...application, status } : application
-      ));
-
-      showActionMessage(`Loan application ${status} successfully`, 'success');
-    } catch (err: any) {
-      console.error('Error updating loan application status:', err);
-      showActionMessage(err.message || 'Failed to update loan application status', 'error');
-    }
-  };
-
-  // Handle loan application deletion
-  const handleDeleteLoanApplication = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this loan application? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/admin/loan-applications/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Failed to delete loan application: ${errorData.error || response.statusText}`);
-      }
-
-      // Remove the application from local state
-      setLoanApplications(loanApplications.filter((application: LoanApplication) => application.id !== id));
-
-      showActionMessage('Loan application deleted successfully', 'success');
-    } catch (err: any) {
-      console.error('Error deleting loan application:', err);
-      showActionMessage(err.message || 'Failed to delete loan application', 'error');
-    }
-  };
-
-  // Handle referral deletion
-  const handleDeleteReferral = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this referral? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/admin/referrals/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Failed to delete referral: ${errorData.error || response.statusText}`);
-      }
-
-      // Remove the referral from local state
-      setReferrals(referrals.filter((referral: Referral) => referral.id !== id));
-
-      showActionMessage('Referral deleted successfully', 'success');
-    } catch (err: any) {
-      console.error('Error deleting referral:', err);
-      showActionMessage(err.message || 'Failed to delete referral', 'error');
-    }
-  };
-
-  // Handle eligibility submission status update
-  const handleUpdateEligibilityStatus = async (id: number, status: 'pending' | 'reviewed' | 'contacted') => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/admin/eligibility/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Failed to update eligibility status: ${errorData.error || response.statusText}`);
-      }
-
-      // Update local state
-      setEligibilitySubmissions(eligibilitySubmissions.map((submission: EligibilitySubmission) => 
-        submission.id === id ? { ...submission, status } : submission
-      ));
-
-      showActionMessage(`Eligibility submission ${status} successfully`, 'success');
-    } catch (err: any) {
-      console.error('Error updating eligibility status:', err);
-      showActionMessage(err.message || 'Failed to update eligibility status', 'error');
-    }
-  };
-
-  // Handle eligibility submission deletion
-  const handleDeleteEligibilitySubmission = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this eligibility submission? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/admin/eligibility/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Failed to delete eligibility submission: ${errorData.error || response.statusText}`);
-      }
-
-      // Remove the submission from local state
-      setEligibilitySubmissions(eligibilitySubmissions.filter((submission: EligibilitySubmission) => submission.id !== id));
-
-      showActionMessage('Eligibility submission deleted successfully', 'success');
-    } catch (err: any) {
-      console.error('Error deleting eligibility submission:', err);
-      showActionMessage(err.message || 'Failed to delete eligibility submission', 'error');
-    }
-  };
-
-  // Handle review approval
-  const handleReviewApproval = async (id: number, isApproved: boolean) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/admin/reviews/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: isApproved ? 'verified' : 'rejected' })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update review status');
-      }
-
-      // Update local state
-      setReviews(reviews.map((review: Review) => 
-        review.id === id ? { ...review, status: isApproved ? 'verified' : 'rejected' } : review
-      ));
-
-      showActionMessage(`Review ${isApproved ? 'approved' : 'rejected'} successfully`, 'success');
-    } catch (err: any) {
-      console.error('Error updating review:', err);
-      showActionMessage(err.message || 'Failed to update review', 'error');
-    }
-  };
-
-  // Handle review deletion
-
-  // Handle review deletion
   const handleDeleteReview = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
-      return;
-    }
-
+    if (!guardAuth()) return;
+    if (!window.confirm("Delete this review?")) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/reviews/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const res = await fetch(`${API_BASE_URL}/admin/reviews/${id}`, {
+        method: "DELETE",
+        headers: headersAuthOnly,
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete review');
-      }
-
-      // Remove the review from local state
-      setReviews(reviews.filter((review: Review) => review.id !== id));
-
-      showActionMessage('Review deleted successfully', 'success');
-    } catch (err: any) {
-      console.error('Error deleting review:', err);
-      showActionMessage(err.message || 'Failed to delete review', 'error');
+      if (!res.ok) throw new Error("Delete failed");
+      setReviews((prev) => prev.filter((r) => r.id !== id));
+      showActionMessage("Review deleted.", "success");
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to delete review.", "error");
     }
   };
 
-  // Handle event deletion
-  const handleDeleteEvent = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/admin/events/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Failed to delete event: ${errorData.error || response.statusText}`);
-      }
-
-      // Remove the event from local state
-      setEvents(events.filter((event: Event) => event.id !== id));
-
-      showActionMessage('Event deleted successfully', 'success');
-    } catch (err: any) {
-      console.error('Error deleting event:', err);
-      showActionMessage(err.message || 'Failed to delete event', 'error');
-    }
-  };
-
-  // Handle testimonial video deletion
-  const handleDeleteVideo = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this testimonial video? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/admin/testimonial-videos/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Failed to delete video: ${errorData.error || response.statusText}`);
-      }
-
-      // Remove the video from local state
-      setTestimonialVideos(testimonialVideos.filter((video: TestimonialVideo) => video.id !== id));
-
-      showActionMessage('Testimonial video deleted successfully', 'success');
-    } catch (err: any) {
-      console.error('Error deleting video:', err);
-      showActionMessage(err.message || 'Failed to delete video', 'error');
-    }
-  };
-
-  // Handle input changes for forms
-  const handleEventInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target as HTMLInputElement;
-    const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
-    
-    setNewEvent({
-      ...newEvent,
-      [name]: type === 'checkbox' ? checked : value
-    });
-  };
-
+  // ---------- handlers: events ----------
   const handleEventImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setEventImage(file);
-      
-      // Create preview
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setEventImagePreview(e.target?.result as string);
-      };
+      reader.onload = () => setEventImagePreview(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
 
-  const handleVideoInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target as HTMLInputElement;
-    const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
-    
-    setNewVideo({
-      ...newVideo,
-      [name]: type === 'checkbox' ? checked : value
+  const resetEventModal = () => {
+    setNewEvent({
+      title: "",
+      description: "",
+      event_date: "",
+      display_order: 0,
+      is_active: true,
     });
+    setEventImage(null);
+    setEventImagePreview(null);
   };
 
+  const handleAddEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guardAuth()) return;
+
+    try {
+      if (!newEvent.title.trim()) return showActionMessage("Event title is required.", "error");
+      if (!newEvent.event_date.trim()) return showActionMessage("Event date is required.", "error");
+
+      const formData = new FormData();
+      formData.append("title", newEvent.title.trim());
+      formData.append("description", newEvent.description || "");
+      formData.append("event_date", newEvent.event_date);
+      formData.append("display_order", String(newEvent.display_order || 0));
+      formData.append("is_active", newEvent.is_active ? "1" : "0");
+      if (eventImage) formData.append("image", eventImage);
+
+      const res = await fetch(`${API_BASE_URL}/admin/events`, {
+        method: "POST",
+        headers: headersAuthOnly,
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const msg = await safeJson(res);
+        console.error(msg);
+        throw new Error("Failed to create event");
+      }
+
+      showActionMessage("Event created.", "success");
+      setShowEventModal(false);
+      resetEventModal();
+      fetchAllData();
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to create event.", "error");
+    }
+  };
+
+  const toggleEvent = async (id: number, is_active: boolean) => {
+    if (!guardAuth()) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/events/${id}/toggle`, {
+        method: "PATCH",
+        headers: headersJson,
+        body: JSON.stringify({ is_active: !is_active }),
+      });
+      if (!res.ok) throw new Error("Toggle failed");
+      setEvents((prev) => prev.map((ev) => (ev.id === id ? { ...ev, is_active: !is_active } : ev)));
+      showActionMessage("Event updated.", "success");
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to update event.", "error");
+    }
+  };
+
+  const deleteEvent = async (id: number) => {
+    if (!guardAuth()) return;
+    if (!window.confirm("Delete this event?")) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/events/${id}`, {
+        method: "DELETE",
+        headers: headersAuthOnly,
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      setEvents((prev) => prev.filter((ev) => ev.id !== id));
+      showActionMessage("Event deleted.", "success");
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to delete event.", "error");
+    }
+  };
+
+  // ---------- handlers: videos ----------
   const handleVideoImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setVideoImage(file);
-      
-      // Create preview
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setVideoImagePreview(e.target?.result as string);
-      };
+      reader.onload = () => setVideoImagePreview(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
 
-  const handleRegulatoryInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target as HTMLInputElement;
-    const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
-    
-    setNewRegulatoryUpdate({
-      ...newRegulatoryUpdate,
-      [name]: type === 'checkbox' ? checked : value
+  const resetVideoModal = () => {
+    setNewVideo({
+      title: "",
+      video_url: "",
+      customer_name: "",
+      customer_location: "",
+      description: "",
+      display_order: 0,
+      is_active: true,
     });
-  };
-
-  // Handle form submissions
-  const handleAddEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      if (eventImage) {
-        // Upload with file
-        const formData = new FormData();
-        formData.append('image', eventImage);
-        formData.append('title', newEvent.title);
-        formData.append('description', newEvent.description);
-        formData.append('event_date', newEvent.event_date);
-        formData.append('display_order', newEvent.display_order.toString());
-        formData.append('is_active', newEvent.is_active.toString());
-      
-        const response = await fetch(`${API_BASE_URL}/admin/events/upload`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(`Failed to add event: ${errorData.error || response.statusText}`);
-        }
-      } else if (newEvent.image_url) {
-        // Upload with URL
-        const response = await fetch(`${API_BASE_URL}/admin/events`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(newEvent)
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(`Failed to add event: ${errorData.error || response.statusText}`);
-        }
-      } else {
-        throw new Error('Please provide an image file or URL');
-      }
-
-      // Reset form and close modal
-      setNewEvent({
-        title: '',
-        description: '',
-        image_url: '',
-        event_date: '',
-        display_order: 0,
-        is_active: true
-      });
-      setEventImage(null);
-      setEventImagePreview(null);
-      setShowEventModal(false);
-
-      // Refresh data
-      fetchAllData();
-      showActionMessage('Event added successfully', 'success');
-    } catch (err: any) {
-      console.error('Error adding event:', err);
-      showActionMessage(err.message || 'Failed to add event', 'error');
-    }
+    setVideoImage(null);
+    setVideoImagePreview(null);
   };
 
   const handleAddVideo = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (!guardAuth()) return;
+
     try {
-      if (videoImage) {
-        // Upload with file
-        const formData = new FormData();
-        formData.append('image', videoImage);
-        formData.append('title', newVideo.title);
-        formData.append('video_url', newVideo.video_url);
-        formData.append('customer_name', newVideo.customer_name);
-        formData.append('customer_location', newVideo.customer_location);
-        formData.append('description', newVideo.description);
-        formData.append('display_order', newVideo.display_order.toString());
-        formData.append('is_active', newVideo.is_active.toString());
-      
-        const response = await fetch(`${API_BASE_URL}/admin/testimonial-videos/upload`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        });
+      if (!newVideo.title.trim()) return showActionMessage("Video title is required.", "error");
+      if (!newVideo.video_url.trim()) return showActionMessage("Video URL is required.", "error");
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(`Failed to add video: ${errorData.error || response.statusText}`);
-        }
-      } else {
-        // Upload with existing data
-        const response = await fetch(`${API_BASE_URL}/admin/testimonial-videos`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(newVideo)
-        });
+      const formData = new FormData();
+      formData.append("title", newVideo.title.trim());
+      formData.append("video_url", newVideo.video_url.trim());
+      formData.append("customer_name", newVideo.customer_name || "");
+      formData.append("customer_location", newVideo.customer_location || "");
+      formData.append("description", newVideo.description || "");
+      formData.append("display_order", String(newVideo.display_order || 0));
+      formData.append("is_active", newVideo.is_active ? "1" : "0");
+      if (videoImage) formData.append("image", videoImage);
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(`Failed to add video: ${errorData.error || response.statusText}`);
-        }
+      const res = await fetch(`${API_BASE_URL}/admin/testimonial-videos`, {
+        method: "POST",
+        headers: headersAuthOnly,
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const msg = await safeJson(res);
+        console.error(msg);
+        throw new Error("Failed to create video");
       }
 
-      // Reset form and close modal
-      setNewVideo({
-        title: '',
-        video_url: '',
-        customer_name: '',
-        customer_location: '',
-        description: '',
-        display_order: 0,
-        is_active: true
-      });
-      setVideoImage(null);
-      setVideoImagePreview(null);
+      showActionMessage("Video created.", "success");
       setShowVideoModal(false);
-
-      // Refresh data
+      resetVideoModal();
       fetchAllData();
-      showActionMessage('Video added successfully', 'success');
-    } catch (err: any) {
-      console.error('Error adding video:', err);
-      showActionMessage(err.message || 'Failed to add video', 'error');
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to create video.", "error");
     }
   };
 
-  const handleAddRegulatoryUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const toggleVideo = async (id: number, is_active: boolean) => {
+    if (!guardAuth()) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/regulatory-updates`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(newRegulatoryUpdate)
+      const res = await fetch(`${API_BASE_URL}/admin/testimonial-videos/${id}/toggle`, {
+        method: "PATCH",
+        headers: headersJson,
+        body: JSON.stringify({ is_active: !is_active }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to add regulatory update');
-      }
-      
-      // Reset form and close modal
-      setNewRegulatoryUpdate({
-        title: '',
-        content: '',
-        category: 'RBI',
-        display_order: 0,
-        is_active: true
-      });
-      setShowRegulatoryModal(false);
-
-      // Refresh data
-      fetchAllData();
-      showActionMessage('Regulatory update added successfully', 'success');
-    } catch (err: any) {
-      console.error('Error adding regulatory update:', err);
-      showActionMessage(err.message || 'Failed to add regulatory update', 'error');
+      if (!res.ok) throw new Error("Toggle failed");
+      setVideos((prev) => prev.map((v) => (v.id === id ? { ...v, is_active: !is_active } : v)));
+      showActionMessage("Video updated.", "success");
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to update video.", "error");
     }
   };
 
-  // Navigation items
-  const navigationItems = [
-  { id: 'overview', label: 'Dashboard', icon: BarChart3 },
-  { 
-    id: 'content', 
-    label: 'Content Management', 
-    items: [
-      { id: 'blogs', label: 'Blogs', icon: Newspaper },   // ✅ NEW
-      { id: 'regulatory', label: 'Regulatory Updates', icon: BookOpen, count: regulatoryUpdates.length },
-      { id: 'events', label: 'Events', icon: Calendar, count: events.length },
-      { id: 'videos', label: 'Testimonial Videos', icon: Video, count: testimonialVideos.length }
-    ]
-  },
-
-    { 
-      id: 'users', 
-      label: 'User Management', 
-      items: [
-        { id: 'users-list', label: 'Users', icon: Users, count: users.length },
-        { id: 'reviews', label: 'Reviews', icon: Star, count: reviews.length }
-      ]
-    },
-    { 
-      id: 'loans', 
-      label: 'Loan Management', 
-      items: [
-        { id: 'applications', label: 'Applications', icon: FileText, count: loanApplications.length },
-        { id: 'referrals', label: 'Referrals', icon: TrendingUp, count: referrals.length },
-        { id: 'eligibility', label: 'Eligibility Submissions', icon: Calculator, count: eligibilitySubmissions.length }
-      ]
+  const deleteVideo = async (id: number) => {
+    if (!guardAuth()) return;
+    if (!window.confirm("Delete this video?")) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/testimonial-videos/${id}`, {
+        method: "DELETE",
+        headers: headersAuthOnly,
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      setVideos((prev) => prev.filter((v) => v.id !== id));
+      showActionMessage("Video deleted.", "success");
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to delete video.", "error");
     }
+  };
+
+  // ---------- handlers: regulatory ----------
+  const resetRegulatoryModal = () => {
+    setNewRegulatory({
+      title: "",
+      content: "",
+      category: "RBI",
+      display_order: 0,
+      is_active: true,
+    });
+  };
+
+  const handleAddRegulatory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guardAuth()) return;
+
+    try {
+      if (!newRegulatory.title.trim()) return showActionMessage("Title is required.", "error");
+      if (!newRegulatory.content.trim()) return showActionMessage("Content is required.", "error");
+
+      const res = await fetch(`${API_BASE_URL}/admin/regulatory-updates`, {
+        method: "POST",
+        headers: headersJson,
+        body: JSON.stringify({
+          ...newRegulatory,
+          title: newRegulatory.title.trim(),
+          content: newRegulatory.content.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const msg = await safeJson(res);
+        console.error(msg);
+        throw new Error("Failed to create update");
+      }
+
+      showActionMessage("Regulatory update created.", "success");
+      setShowRegulatoryModal(false);
+      resetRegulatoryModal();
+      fetchAllData();
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to create regulatory update.", "error");
+    }
+  };
+
+  const toggleRegulatory = async (id: number, is_active: boolean) => {
+    if (!guardAuth()) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/regulatory-updates/${id}/toggle`, {
+        method: "PATCH",
+        headers: headersJson,
+        body: JSON.stringify({ is_active: !is_active }),
+      });
+      if (!res.ok) throw new Error("Toggle failed");
+      setRegulatory((prev) => prev.map((r) => (r.id === id ? { ...r, is_active: !is_active } : r)));
+      showActionMessage("Regulatory update updated.", "success");
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to update regulatory update.", "error");
+    }
+  };
+
+  const deleteRegulatory = async (id: number) => {
+    if (!guardAuth()) return;
+    if (!window.confirm("Delete this update?")) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/regulatory-updates/${id}`, {
+        method: "DELETE",
+        headers: headersAuthOnly,
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      setRegulatory((prev) => prev.filter((r) => r.id !== id));
+      showActionMessage("Regulatory update deleted.", "success");
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to delete regulatory update.", "error");
+    }
+  };
+
+  // ---------- logout ----------
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    window.location.href = "/";
+  };
+
+  // ---------- filtering ----------
+  const filterText = search.trim().toLowerCase();
+  const filteredBlogs = useMemo(() => {
+    if (!filterText) return blogs;
+    return blogs.filter((b) =>
+      [b.title, b.slug, b.description, b.author || "", b.category || ""].some((x) =>
+        String(x).toLowerCase().includes(filterText)
+      )
+    );
+  }, [blogs, filterText]);
+
+  const filteredUsers = useMemo(() => {
+    if (!filterText) return users;
+    return users.filter((u) =>
+      [u.name, u.email, u.phone || ""].some((x) => String(x).toLowerCase().includes(filterText))
+    );
+  }, [users, filterText]);
+
+  const filteredApplications = useMemo(() => {
+    if (!filterText) return loanApplications;
+    return loanApplications.filter((a) =>
+      [a.user_name || "", a.user_email || "", a.service_name || "", a.status || ""].some((x) =>
+        String(x).toLowerCase().includes(filterText)
+      )
+    );
+  }, [loanApplications, filterText]);
+
+  const filteredReferrals = useMemo(() => {
+    if (!filterText) return referrals;
+    return referrals.filter((r) =>
+      [
+        r.referrer_name || "",
+        r.referrer_email || "",
+        r.referred_name || "",
+        r.referred_email || "",
+        r.status || "",
+      ].some((x) => String(x).toLowerCase().includes(filterText))
+    );
+  }, [referrals, filterText]);
+
+  const filteredReviews = useMemo(() => {
+    if (!filterText) return reviews;
+    return reviews.filter((r) =>
+      [r.name || "", r.email || "", r.review_text || "", r.status || ""].some((x) =>
+        String(x).toLowerCase().includes(filterText)
+      )
+    );
+  }, [reviews, filterText]);
+
+  const filteredVideos = useMemo(() => {
+    if (!filterText) return videos;
+    return videos.filter((v) =>
+      [v.title, v.customer_name, v.customer_location, v.description].some((x) =>
+        String(x).toLowerCase().includes(filterText)
+      )
+    );
+  }, [videos, filterText]);
+
+  const filteredEvents = useMemo(() => {
+    if (!filterText) return events;
+    return events.filter((ev) =>
+      [ev.title, ev.description].some((x) => String(x).toLowerCase().includes(filterText))
+    );
+  }, [events, filterText]);
+
+  const filteredRegulatory = useMemo(() => {
+    if (!filterText) return regulatory;
+    return regulatory.filter((ru) =>
+      [ru.title, ru.content, ru.category].some((x) => String(x).toLowerCase().includes(filterText))
+    );
+  }, [regulatory, filterText]);
+
+  const filteredEligibility = useMemo(() => {
+    if (!filterText) return eligibility;
+    return eligibility.filter((el) =>
+      [el.name, el.phone, el.email || "", el.employment_type, el.status || ""].some((x) =>
+        String(x).toLowerCase().includes(filterText)
+      )
+    );
+  }, [eligibility, filterText]);
+
+  // ---------- UI blocks ----------
+  const navigationItems = [
+    { id: "overview" as const, label: "Dashboard", icon: BarChart3 },
+    { divider: true, label: "Content Management" },
+    { id: "blogs" as const, label: "Blogs", icon: Newspaper, count: blogs.length },
+    { id: "regulatory" as const, label: "Regulatory Updates", icon: BookOpen, count: regulatory.length },
+    { id: "events" as const, label: "Events", icon: Calendar, count: events.length },
+    { id: "videos" as const, label: "Testimonial Videos", icon: Video, count: videos.length },
+    { divider: true, label: "User Management" },
+    { id: "users-list" as const, label: "Users", icon: Users, count: users.length },
+    { id: "reviews" as const, label: "Reviews", icon: Star, count: reviews.length },
+    { divider: true, label: "Loan Management" },
+    { id: "applications" as const, label: "Applications", icon: FileText, count: loanApplications.length },
+    { id: "referrals" as const, label: "Referrals", icon: TrendingUp, count: referrals.length },
+    { id: "eligibility" as const, label: "Eligibility Submissions", icon: Calculator, count: eligibility.length },
   ];
 
-  // Render loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">Loading dashboard...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto" />
+          <p className="mt-4 text-gray-600 font-medium">Loading dashboard…</p>
         </div>
       </div>
     );
@@ -1090,346 +906,193 @@ const handleAddBlog = async (e: React.FormEvent) => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Action Status Message */}
+      {/* toast */}
       {actionStatus && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
-          actionStatus.type === 'success' 
-            ? 'bg-green-500 text-white' 
-            : 'bg-red-500 text-white'
-        }`}>
+        <div
+          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
+            actionStatus.type === "success" ? "bg-green-600 text-white" : "bg-red-600 text-white"
+          }`}
+        >
           {actionStatus.message}
         </div>
       )}
-      {/* Create Blog Modal */}
-{showBlogModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium">Create Blog</h3>
-          <button onClick={() => setShowBlogModal(false)}>
-            <X className="h-6 w-6 text-gray-500" />
-          </button>
-        </div>
 
-        <form onSubmit={handleAddBlog} className="space-y-4">
-          {/* Title */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Blog Title *
-            </label>
-            <input
-              type="text"
-              value={newBlog.title}
-              onChange={(e) => setNewBlog({ ...newBlog, title: e.target.value })}
-              className="w-full px-3 py-2 border rounded-md"
-              required
-            />
-          </div>
-
-          {/* Optional: Slug preview (auto-generated in backend anyway) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Slug (auto)
-            </label>
-            <input
-              type="text"
-              value={
-                (newBlog.title || "")
-                  .toLowerCase()
-                  .trim()
-                  .replace(/[^a-z0-9]+/g, "-")
-                  .replace(/^-|-$/g, "")
-              }
-              className="w-full px-3 py-2 border rounded-md bg-gray-50 text-gray-600"
-              readOnly
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              This is generated from the title and saved by the backend.
-            </p>
-          </div>
-
-          {/* Author + Category */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Author
-              </label>
-              <input
-                type="text"
-                value={newBlog.author || ""}
-                onChange={(e) =>
-                  setNewBlog({ ...newBlog, author: e.target.value })
-                }
-                className="w-full px-3 py-2 border rounded-md"
-                placeholder="NSV Finserv Team"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category
-              </label>
-              <input
-                type="text"
-                value={newBlog.category || ""}
-                onChange={(e) =>
-                  setNewBlog({ ...newBlog, category: e.target.value })
-                }
-                className="w-full px-3 py-2 border rounded-md"
-                placeholder="Loans / CIBIL / Eligibility"
-              />
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Short Description
-            </label>
-            <textarea
-              rows={2}
-              value={newBlog.description}
-              onChange={(e) =>
-                setNewBlog({ ...newBlog, description: e.target.value })
-              }
-              className="w-full px-3 py-2 border rounded-md"
-              placeholder="This will show on the blog card and can also be used for SEO."
-            />
-          </div>
-
-          {/* Thumbnail */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Thumbnail Image
-            </label>
-            <input type="file" accept="image/*" onChange={handleBlogImageChange} />
-            {blogImagePreview && (
-              <img
-                src={blogImagePreview}
-                alt="Preview"
-                className="mt-2 h-24 rounded-md object-cover"
-              />
-            )}
-          </div>
-
-          {/* Blog Content */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Blog Content *
-            </label>
-            <textarea
-              value={newBlog.content}
-              onChange={(e) =>
-                setNewBlog({ ...newBlog, content: e.target.value })
-              }
-              rows={12}
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Write blog content here..."
-              required
-            />
-          </div>
-
-          {/* SEO fields */}
-          <div className="border rounded-md p-4 bg-gray-50">
-            <p className="text-sm font-medium text-gray-800 mb-3">SEO Settings (optional)</p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Meta Title
-                </label>
-                <input
-                  type="text"
-                  value={newBlog.meta_title || ""}
-                  onChange={(e) =>
-                    setNewBlog({ ...newBlog, meta_title: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border rounded-md"
-                  placeholder="Defaults to Blog Title if left empty"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Meta Description
-                </label>
-                <textarea
-                  rows={2}
-                  value={newBlog.meta_description || ""}
-                  onChange={(e) =>
-                    setNewBlog({ ...newBlog, meta_description: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border rounded-md"
-                  placeholder="Defaults to Short Description if left empty"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Keywords (comma-separated)
-                </label>
-                <input
-                  type="text"
-                  value={newBlog.keywords || ""}
-                  onChange={(e) =>
-                    setNewBlog({ ...newBlog, keywords: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border rounded-md"
-                  placeholder="loan, emi, cibil, interest rate"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Publish Toggle */}
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={newBlog.is_published}
-              onChange={(e) =>
-                setNewBlog({ ...newBlog, is_published: e.target.checked })
-              }
-            />
-            <span className="text-sm text-gray-700">Publish immediately</span>
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={() => setShowBlogModal(false)}
-              className="px-4 py-2 border rounded-md"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Create Blog
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-)}
-
-      {/* Event Modal */}
-      {showEventModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+      {/* BLOG MODAL */}
+      {showBlogModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium">Add New Event</h3>
-                <button 
-                  onClick={() => setShowEventModal(false)}
-                  className="text-gray-400 hover:text-gray-500"
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Create Blog</h3>
+                <button
+                  onClick={() => {
+                    setShowBlogModal(false);
+                    resetBlogModal();
+                  }}
+                  className="p-2 rounded-md hover:bg-gray-100"
                 >
-                  <X className="h-6 w-6" />
+                  <X className="h-5 w-5 text-gray-700" />
                 </button>
               </div>
-              <form onSubmit={handleAddEvent}>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+
+              <form onSubmit={handleAddBlog} className="space-y-4">
+                {/* title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Blog Title *</label>
+                  <input
+                    className="w-full px-3 py-2 border rounded-md"
+                    value={newBlog.title}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setNewBlog((prev) => ({
+                        ...prev,
+                        title: v,
+                        slug: slugTouched ? prev.slug : slugify(v),
+                      }));
+                    }}
+                    required
+                  />
+                </div>
+
+                {/* slug */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label>
+                  <div className="flex gap-2">
                     <input
-                      type="text"
-                      name="title"
-                      value={newEvent.title}
-                      onChange={handleEventInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-md"
+                      value={newBlog.slug}
+                      onChange={(e) => {
+                        setSlugTouched(true);
+                        setNewBlog((prev) => ({ ...prev, slug: e.target.value }));
+                      }}
+                      placeholder="e.g. how-to-improve-cibil-score"
                       required
                     />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                    <textarea
-                      name="description"
-                      value={newEvent.description}
-                      onChange={handleEventInputChange}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Event Date</label>
-                    <input
-                      type="date"
-                      name="event_date"
-                      value={newEvent.event_date}
-                      onChange={handleEventInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Image Upload</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleEventImageChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    {eventImagePreview && (
-                      <div className="mt-2">
-                        <img src={eventImagePreview} alt="Preview" className="h-20 w-20 object-cover rounded-md" />
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Image URL (optional if uploading file)</label>
-                    <input
-                      type="text"
-                      name="image_url"
-                      value={newEvent.image_url}
-                      onChange={handleEventInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={!!eventImage}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
-                    <input
-                      type="number"
-                      name="display_order"
-                      value={newEvent.display_order}
-                      onChange={handleEventInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      min="0"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      name="is_active"
-                      checked={newEvent.is_active}
-                      onChange={handleEventInputChange}
-                      className="h-4 w-4 text-blue-600 rounded"
-                    />
-                    <label className="ml-2 block text-sm text-gray-700">Active</label>
+                    <button
+                      type="button"
+                      className="px-3 py-2 border rounded-md bg-gray-50 hover:bg-gray-100"
+                      onClick={() => {
+                        setSlugTouched(false);
+                        setNewBlog((prev) => ({ ...prev, slug: slugify(prev.title) }));
+                      }}
+                    >
+                      Generate
+                    </button>
                   </div>
                 </div>
-                
-                <div className="mt-6 flex justify-end space-x-3">
+
+                {/* author/category */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Author</label>
+                    <input
+                      className="w-full px-3 py-2 border rounded-md"
+                      value={newBlog.author}
+                      onChange={(e) => setNewBlog((prev) => ({ ...prev, author: e.target.value }))}
+                      placeholder="NSV Finserv Team"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <input
+                      className="w-full px-3 py-2 border rounded-md"
+                      value={newBlog.category}
+                      onChange={(e) => setNewBlog((prev) => ({ ...prev, category: e.target.value }))}
+                      placeholder="Loans / CIBIL / Eligibility"
+                    />
+                  </div>
+                </div>
+
+                {/* description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Short Description</label>
+                  <textarea
+                    className="w-full px-3 py-2 border rounded-md"
+                    rows={2}
+                    value={newBlog.description}
+                    onChange={(e) => setNewBlog((prev) => ({ ...prev, description: e.target.value }))}
+                  />
+                </div>
+
+                {/* thumbnail */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Thumbnail</label>
+                  <input type="file" accept="image/*" onChange={handleBlogImageChange} />
+                  {blogImagePreview && (
+                    <img src={blogImagePreview} alt="Preview" className="mt-2 h-24 rounded-md object-cover" />
+                  )}
+                </div>
+
+                {/* content */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Blog Content *</label>
+                  <div className="border rounded-md overflow-hidden">
+                    <ReactQuill
+                      theme="snow"
+                      value={newBlog.content}
+                      onChange={(v) => setNewBlog((prev) => ({ ...prev, content: v }))}
+                      modules={quillModules}
+                      formats={quillFormats}
+                    />
+                  </div>
+                </div>
+
+                {/* seo */}
+                <div className="border rounded-md p-4 bg-gray-50 space-y-3">
+                  <div className="text-sm font-semibold text-gray-800">SEO Settings (optional)</div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
+                    <input
+                      className="w-full px-3 py-2 border rounded-md"
+                      value={newBlog.meta_title}
+                      onChange={(e) => setNewBlog((prev) => ({ ...prev, meta_title: e.target.value }))}
+                      placeholder="Defaults to Blog Title"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
+                    <textarea
+                      className="w-full px-3 py-2 border rounded-md"
+                      rows={2}
+                      value={newBlog.meta_description}
+                      onChange={(e) => setNewBlog((prev) => ({ ...prev, meta_description: e.target.value }))}
+                      placeholder="Defaults to Short Description"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Keywords (comma-separated)</label>
+                    <input
+                      className="w-full px-3 py-2 border rounded-md"
+                      value={newBlog.keywords}
+                      onChange={(e) => setNewBlog((prev) => ({ ...prev, keywords: e.target.value }))}
+                      placeholder="loan, emi, cibil"
+                    />
+                  </div>
+                </div>
+
+                {/* publish */}
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={newBlog.is_published}
+                    onChange={(e) => setNewBlog((prev) => ({ ...prev, is_published: e.target.checked }))}
+                  />
+                  Publish immediately
+                </label>
+
+                <div className="flex justify-end gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowEventModal(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="px-4 py-2 border rounded-md"
+                    onClick={() => {
+                      setShowBlogModal(false);
+                      resetBlogModal();
+                    }}
                   >
                     Cancel
                   </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    Add Event
+                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Create Blog
                   </button>
                 </div>
               </form>
@@ -1438,132 +1101,214 @@ const handleAddBlog = async (e: React.FormEvent) => {
         </div>
       )}
 
-      {/* Video Modal */}
-      {showVideoModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+      {/* EVENT MODAL */}
+      {showEventModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium">Add New Testimonial Video</h3>
-                <button 
-                  onClick={() => setShowVideoModal(false)}
-                  className="text-gray-400 hover:text-gray-500"
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Create Event</h3>
+                <button
+                  onClick={() => {
+                    setShowEventModal(false);
+                    resetEventModal();
+                  }}
+                  className="p-2 rounded-md hover:bg-gray-100"
                 >
-                  <X className="h-6 w-6" />
+                  <X className="h-5 w-5 text-gray-700" />
                 </button>
               </div>
-              <form onSubmit={handleAddVideo}>
-                <div className="space-y-4">
+
+              <form onSubmit={handleAddEvent} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                  <input
+                    className="w-full px-3 py-2 border rounded-md"
+                    value={newEvent.title}
+                    onChange={(e) => setNewEvent((prev) => ({ ...prev, title: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    className="w-full px-3 py-2 border rounded-md"
+                    rows={3}
+                    value={newEvent.description}
+                    onChange={(e) => setNewEvent((prev) => ({ ...prev, description: e.target.value }))}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Event Date *</label>
                     <input
-                      type="text"
-                      name="title"
-                      value={newVideo.title}
-                      onChange={handleVideoInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      type="date"
+                      className="w-full px-3 py-2 border rounded-md"
+                      value={newEvent.event_date}
+                      onChange={(e) => setNewEvent((prev) => ({ ...prev, event_date: e.target.value }))}
                       required
                     />
                   </div>
-                  
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">YouTube Video URL *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
                     <input
-                      type="url"
-                      name="video_url"
-                      value={newVideo.video_url}
-                      onChange={handleVideoInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="https://www.youtube.com/watch?v=..."
-                      required
+                      type="number"
+                      className="w-full px-3 py-2 border rounded-md"
+                      value={newEvent.display_order}
+                      onChange={(e) => setNewEvent((prev) => ({ ...prev, display_order: Number(e.target.value) }))}
                     />
                   </div>
-                  
+                </div>
+
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={newEvent.is_active}
+                    onChange={(e) => setNewEvent((prev) => ({ ...prev, is_active: e.target.checked }))}
+                  />
+                  Active
+                </label>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
+                  <input type="file" accept="image/*" onChange={handleEventImageChange} />
+                  {eventImagePreview && (
+                    <img src={eventImagePreview} alt="Preview" className="mt-2 h-24 rounded-md object-cover" />
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    className="px-4 py-2 border rounded-md"
+                    onClick={() => {
+                      setShowEventModal(false);
+                      resetEventModal();
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Create Event
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIDEO MODAL */}
+      {showVideoModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Create Testimonial Video</h3>
+                <button
+                  onClick={() => {
+                    setShowVideoModal(false);
+                    resetVideoModal();
+                  }}
+                  className="p-2 rounded-md hover:bg-gray-100"
+                >
+                  <X className="h-5 w-5 text-gray-700" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddVideo} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                  <input
+                    className="w-full px-3 py-2 border rounded-md"
+                    value={newVideo.title}
+                    onChange={(e) => setNewVideo((prev) => ({ ...prev, title: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Video URL *</label>
+                  <input
+                    className="w-full px-3 py-2 border rounded-md"
+                    value={newVideo.video_url}
+                    onChange={(e) => setNewVideo((prev) => ({ ...prev, video_url: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
                     <input
-                      type="text"
-                      name="customer_name"
+                      className="w-full px-3 py-2 border rounded-md"
                       value={newVideo.customer_name}
-                      onChange={handleVideoInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onChange={(e) => setNewVideo((prev) => ({ ...prev, customer_name: e.target.value }))}
                     />
                   </div>
-                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Customer Location</label>
                     <input
-                      type="text"
-                      name="customer_location"
+                      className="w-full px-3 py-2 border rounded-md"
                       value={newVideo.customer_location}
-                      onChange={handleVideoInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onChange={(e) => setNewVideo((prev) => ({ ...prev, customer_location: e.target.value }))}
                     />
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Image Upload</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleVideoImageChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    {videoImagePreview && (
-                      <div className="mt-2">
-                        <img src={videoImagePreview} alt="Preview" className="h-20 w-20 object-cover rounded-md" />
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                    <textarea
-                      name="description"
-                      value={newVideo.description}
-                      onChange={handleVideoInputChange}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    className="w-full px-3 py-2 border rounded-md"
+                    rows={3}
+                    value={newVideo.description}
+                    onChange={(e) => setNewVideo((prev) => ({ ...prev, description: e.target.value }))}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
                     <input
                       type="number"
-                      name="display_order"
+                      className="w-full px-3 py-2 border rounded-md"
                       value={newVideo.display_order}
-                      onChange={handleVideoInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      min="0"
+                      onChange={(e) => setNewVideo((prev) => ({ ...prev, display_order: Number(e.target.value) }))}
                     />
                   </div>
-                  
-                  <div className="flex items-center">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 mt-6">
                     <input
                       type="checkbox"
-                      name="is_active"
                       checked={newVideo.is_active}
-                      onChange={handleVideoInputChange}
-                      className="h-4 w-4 text-blue-600 rounded"
+                      onChange={(e) => setNewVideo((prev) => ({ ...prev, is_active: e.target.checked }))}
                     />
-                    <label className="ml-2 block text-sm text-gray-700">Active</label>
-                  </div>
+                    Active
+                  </label>
                 </div>
-                
-                <div className="mt-6 flex justify-end space-x-3">
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Thumbnail Image</label>
+                  <input type="file" accept="image/*" onChange={handleVideoImageChange} />
+                  {videoImagePreview && (
+                    <img src={videoImagePreview} alt="Preview" className="mt-2 h-24 rounded-md object-cover" />
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowVideoModal(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="px-4 py-2 border rounded-md"
+                    onClick={() => {
+                      setShowVideoModal(false);
+                      resetVideoModal();
+                    }}
                   >
                     Cancel
                   </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    Add Video
+                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Create Video
                   </button>
                 </div>
               </form>
@@ -1572,96 +1317,93 @@ const handleAddBlog = async (e: React.FormEvent) => {
         </div>
       )}
 
-      {/* Regulatory Update Modal */}
+      {/* REGULATORY MODAL */}
       {showRegulatoryModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium">Add New Regulatory Update</h3>
-                <button 
-                  onClick={() => setShowRegulatoryModal(false)}
-                  className="text-gray-400 hover:text-gray-500"
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Create Regulatory Update</h3>
+                <button
+                  onClick={() => {
+                    setShowRegulatoryModal(false);
+                    resetRegulatoryModal();
+                  }}
+                  className="p-2 rounded-md hover:bg-gray-100"
                 >
-                  <X className="h-6 w-6" />
+                  <X className="h-5 w-5 text-gray-700" />
                 </button>
               </div>
-              <form onSubmit={handleAddRegulatoryUpdate}>
-                <div className="space-y-4">
+
+              <form onSubmit={handleAddRegulatory} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                  <input
+                    className="w-full px-3 py-2 border rounded-md"
+                    value={newRegulatory.title}
+                    onChange={(e) => setNewRegulatory((prev) => ({ ...prev, title: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-                    <input
-                      type="text"
-                      name="title"
-                      value={newRegulatoryUpdate.title}
-                      onChange={handleRegulatoryInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                     <select
-                      name="category"
-                      value={newRegulatoryUpdate.category}
-                      onChange={(e) => setNewRegulatoryUpdate({...newRegulatoryUpdate, category: e.target.value as 'RBI' | 'GST'})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border rounded-md"
+                      value={newRegulatory.category}
+                      onChange={(e) =>
+                        setNewRegulatory((prev) => ({ ...prev, category: e.target.value as "RBI" | "GST" }))
+                      }
                     >
                       <option value="RBI">RBI</option>
                       <option value="GST">GST</option>
                     </select>
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Content *</label>
-                    <textarea
-                      name="content"
-                      value={newRegulatoryUpdate.content}
-                      onChange={handleRegulatoryInputChange}
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
                     <input
                       type="number"
-                      name="display_order"
-                      value={newRegulatoryUpdate.display_order}
-                      onChange={handleRegulatoryInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      min="0"
+                      className="w-full px-3 py-2 border rounded-md"
+                      value={newRegulatory.display_order}
+                      onChange={(e) => setNewRegulatory((prev) => ({ ...prev, display_order: Number(e.target.value) }))}
                     />
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      name="is_active"
-                      checked={newRegulatoryUpdate.is_active}
-                      onChange={handleRegulatoryInputChange}
-                      className="h-4 w-4 text-blue-600 rounded"
-                    />
-                    <label className="ml-2 block text-sm text-gray-700">Active</label>
                   </div>
                 </div>
-                
-                <div className="mt-6 flex justify-end space-x-3">
+
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={newRegulatory.is_active}
+                    onChange={(e) => setNewRegulatory((prev) => ({ ...prev, is_active: e.target.checked }))}
+                  />
+                  Active
+                </label>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Content *</label>
+                  <textarea
+                    className="w-full px-3 py-2 border rounded-md"
+                    rows={6}
+                    value={newRegulatory.content}
+                    onChange={(e) => setNewRegulatory((prev) => ({ ...prev, content: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowRegulatoryModal(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="px-4 py-2 border rounded-md"
+                    onClick={() => {
+                      setShowRegulatoryModal(false);
+                      resetRegulatoryModal();
+                    }}
                   >
                     Cancel
                   </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    Add Update
+                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Create Update
                   </button>
                 </div>
               </form>
@@ -1671,614 +1413,263 @@ const handleAddBlog = async (e: React.FormEvent) => {
       )}
 
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
+      <div
+        className={`${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } fixed inset-y-0 left-0 z-50 w-72 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}
+      >
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
           <div className="flex items-center">
-            <span className="ml-2 text-lg font-bold text-gray-800">NSV Admin</span>
+            <span className="text-lg font-bold text-gray-900">NSV Admin</span>
           </div>
-          <button 
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-gray-500 hover:text-gray-700"
-          >
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-gray-500 hover:text-gray-700">
             <X className="h-6 w-6" />
           </button>
         </div>
-        <nav className="mt-5 px-2">
+
+        <nav className="mt-4 px-2">
           <div className="space-y-1">
-            {navigationItems.map((section) => (
-              <div key={section.id}>
-                {section.items ? (
-                  <>
-                    <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      {section.label}
-                    </div>
-                    {section.items.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => setActiveTab(item.id)}
-                        className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                          activeTab === item.id
-                            ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
-                            : 'text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        <item.icon className="mr-3 h-5 w-5" />
-                        {item.label}
-                        {item.count !== undefined && (
-                          <span className="ml-auto bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-full">
-                            {item.count}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                  </>
-                ) : (
-                  <button
-                    onClick={() => setActiveTab(section.id)}
-                    className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                      activeTab === section.id
-                        ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <section.icon className="mr-3 h-5 w-5" />
-                    {section.label}
-                  </button>
-                )}
-              </div>
-            ))}
+            {navigationItems.map((item, idx) => {
+              if ("divider" in item && item.divider) {
+                return (
+                  <div key={`div-${idx}`} className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    {item.label}
+                  </div>
+                );
+              }
+              const Icon = item.icon;
+              const selected = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                    selected ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700" : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <Icon className="mr-3 h-5 w-5" />
+                  {item.label}
+                  {"count" in item && typeof item.count === "number" && (
+                    <span className="ml-auto bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-full">
+                      {item.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </nav>
       </div>
 
-      {/* Main content */}
+      {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
+        {/* header */}
         <header className="bg-white shadow-sm z-10">
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="lg:hidden text-gray-500 hover:text-gray-700 mr-3"
-              >
+              <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-gray-500 hover:text-gray-700 mr-3">
                 <Menu className="h-6 w-6" />
               </button>
               <h1 className="text-xl font-semibold text-gray-900">Admin Dashboard</h1>
             </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="relative">
+
+            <div className="flex items-center space-x-3">
+              <div className="relative hidden md:block">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
                   type="text"
-                  placeholder="Search..."
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Search in current tab…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="block w-80 pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
               </div>
-              
+
               <button className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100">
                 <Bell className="h-6 w-6" />
               </button>
-              
+
               <button className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100">
                 <Settings className="h-6 w-6" />
               </button>
-              
+
               <button
                 onClick={handleLogout}
                 className="flex items-center text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100 p-2"
+                title="Logout"
               >
                 <LogOut className="h-6 w-6" />
               </button>
             </div>
           </div>
+
+          {/* mobile search */}
+          <div className="px-4 pb-3 md:hidden">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search in current tab…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+            </div>
+          </div>
         </header>
 
-        {/* Main content area */}
+        {/* content */}
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto">
-            {/* Overview Dashboard */}
-            {activeTab === 'overview' && (
-              <div className="space-y-6">
-                <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-                
-                {/* Statistics Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-center">
-                        <Users className="h-8 w-8 text-blue-600" />
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-gray-600">Total Users</p>
-                          <p className="text-2xl font-bold text-gray-900">{stats?.totalUsers || 0}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-center">
-                        <FileText className="h-8 w-8 text-green-600" />
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-gray-600">Total Applications</p>
-                          <p className="text-2xl font-bold text-gray-900">{stats?.totalApplications || 0}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-center">
-                        <TrendingUp className="h-8 w-8 text-purple-600" />
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-gray-600">Total Referrals</p>
-                          <p className="text-2xl font-bold text-gray-900">{stats?.totalReferrals || 0}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-center">
-                        <BarChart3 className="h-8 w-8 text-orange-600" />
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-gray-600">Website Clicks</p>
-                          <p className="text-2xl font-bold text-gray-900">{stats?.totalClicks || 0}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-
-                {/* Recent Activity */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Recent Users</CardTitle>
-                      <CardDescription>Latest user registrations</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {users.slice(0, 5).map((user) => (
-                          <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div>
-                              <p className="font-medium text-gray-900">{user.name}</p>
-                              <p className="text-sm text-gray-500">{user.email}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm text-gray-500">{formatDate(user.created_at)}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Recent Applications</CardTitle>
-                      <CardDescription>Latest loan applications</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {loanApplications.slice(0, 5).map((application) => (
-                          <div key={application.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div>
-                              <p className="font-medium text-gray-900">{application.user_name}</p>
-                              <p className="text-sm text-gray-500">{application.service_name}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-medium text-gray-900">{formatCurrency(application.amount)}</p>
-                              <p className="text-sm text-gray-500">{formatDate(application.submitted_at)}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            )}
-            {/* Blogs */}
-{activeTab === 'blogs' && (
-  <div className="space-y-6">
-    <div className="flex justify-between items-center">
-      <h1 className="text-2xl font-bold text-gray-900">Blogs</h1>
-
-      <button
-        onClick={() => setShowBlogModal(true)}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
-      >
-        <Plus className="h-4 w-4 mr-2" />
-        Add Blog
-      </button>
-    </div>
-
-    <Card>
-      <CardContent>
-        {blogs.length === 0 ? (
-          <p className="text-gray-500">No blogs created yet.</p>
-        ) : (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left">Title</th>
-                <th className="px-4 py-2">Status</th>
-                <th className="px-4 py-2">Created</th>
-                <th className="px-4 py-2 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {blogs.map((blog) => (
-                <tr key={blog.id}>
-                  <td className="px-4 py-2 font-medium">{blog.title}</td>
-                  <td className="px-4 py-2">
-                    {blog.is_published ? 'Published' : 'Draft'}
-                  </td>
-                  <td className="px-4 py-2">
-                    {formatDate(blog.created_at)}
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    <button
-                      onClick={() => handleDeleteBlog(blog.id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </CardContent>
-    </Card>
-  </div>
-)}
-
-
-            {/* Users List */}
-            {activeTab === 'users-list' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h1 className="text-2xl font-bold text-gray-900">Users</h1>
-                </div>
-                
-                <Card>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {users.map((user) => (
-                            <tr key={user.id}>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">{user.email}</div>
-                                <div className="text-sm text-gray-500">{user.phone}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {formatDate(user.created_at)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button className="text-blue-600 hover:text-blue-900 mr-3">
-                                  <Eye className="h-4 w-4" />
-                                </button>
-                                <button className="text-gray-600 hover:text-gray-900 mr-3">
-                                  <Edit className="h-4 w-4" />
-                                </button>
-                                <button className="text-red-600 hover:text-red-900">
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            {/* Loan Applications */}
-            {activeTab === 'applications' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h1 className="text-2xl font-bold text-gray-900">Loan Applications</h1>
-                </div>
-                
-                <Card>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applicant</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {loanApplications.map((application) => (
-                            <tr key={application.id}>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">{application.user_name}</div>
-                                <div className="text-sm text-gray-500">{application.user_email}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {application.service_name}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {formatCurrency(application.amount)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  application.status === 'approved' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : application.status === 'rejected' 
-                                      ? 'bg-red-100 text-red-800' 
-                                      : 'bg-yellow-100 text-yellow-800'
-                                }`}>
-                                  {application.status}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {formatDate(application.submitted_at)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button 
-                                  onClick={() => handleUpdateLoanApplicationStatus(application.id, 'pending')}
-                                  className="text-yellow-600 hover:text-yellow-900 mr-3"
-                                  disabled={application.status === 'pending'}
-                                >
-                                  Pending
-                                </button>
-                                <button 
-                                  onClick={() => handleUpdateLoanApplicationStatus(application.id, 'approved')}
-                                  className="text-green-600 hover:text-green-900 mr-3"
-                                  disabled={application.status === 'approved'}
-                                >
-                                  Approve
-                                </button>
-                                <button 
-                                  onClick={() => handleUpdateLoanApplicationStatus(application.id, 'rejected')}
-                                  className="text-red-600 hover:text-red-900 mr-3"
-                                  disabled={application.status === 'rejected'}
-                                >
-                                  Reject
-                                </button>
-                                <button className="text-blue-600 hover:text-blue-900 mr-3">
-                                  <Eye className="h-4 w-4" />
-                                </button>
-                                <button 
-                                  onClick={() => handleDeleteLoanApplication(application.id)}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            {/* Referrals */}
-            {activeTab === 'referrals' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h1 className="text-2xl font-bold text-gray-900">Referrals</h1>
-                  <button 
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* OVERVIEW */}
+            {activeTab === "overview" && (
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-gray-900">Overview</h2>
+                  <button
                     onClick={fetchAllData}
-                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg transition-colors"
+                    className="px-4 py-2 border rounded-md bg-white hover:bg-gray-50"
                   >
                     Refresh
                   </button>
                 </div>
-                
-                <Card>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Referrer</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Referred</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {referrals.map((referral) => (
-                            <tr key={referral.id}>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">{referral.referrer_name}</div>
-                                <div className="text-sm text-gray-500">{referral.referrer_email}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">{referral.referred_name}</div>
-                                <div className="text-sm text-gray-500">{referral.referred_email}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  referral.status === 'accepted' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : referral.status === 'rejected' 
-                                      ? 'bg-red-100 text-red-800' 
-                                      : 'bg-yellow-100 text-yellow-800'
-                                }`}>
-                                  {referral.status}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {formatDate(referral.created_at)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button 
-                                  onClick={() => handleUpdateReferralStatus(referral.id, 'pending')}
-                                  className="text-yellow-600 hover:text-yellow-900 mr-3"
-                                  disabled={referral.status === 'pending'}
-                                >
-                                  Pending
-                                </button>
-                                <button 
-                                  onClick={() => handleUpdateReferralStatus(referral.id, 'accepted')}
-                                  className="text-green-600 hover:text-green-900 mr-3"
-                                  disabled={referral.status === 'accepted'}
-                                >
-                                  Accept
-                                </button>
-                                <button 
-                                  onClick={() => handleUpdateReferralStatus(referral.id, 'rejected')}
-                                  className="text-red-600 hover:text-red-900 mr-3"
-                                  disabled={referral.status === 'rejected'}
-                                >
-                                  Reject
-                                </button>
-                                <button className="text-blue-600 hover:text-blue-900 mr-3">
-                                  <Eye className="h-4 w-4" />
-                                </button>
-                                <button 
-                                  onClick={() => handleDeleteReferral(referral.id)}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white rounded-xl p-5 shadow-sm border">
+                    <div className="text-sm text-gray-500">Total Users</div>
+                    <div className="text-2xl font-bold text-gray-900 mt-1">{stats?.totalUsers ?? "-"}</div>
+                    <div className="text-xs text-gray-500 mt-1">Recent: {stats?.recentUsers ?? "-"}</div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-5 shadow-sm border">
+                    <div className="text-sm text-gray-500">Loan Applications</div>
+                    <div className="text-2xl font-bold text-gray-900 mt-1">{stats?.totalApplications ?? "-"}</div>
+                    <div className="text-xs text-gray-500 mt-1">Recent: {stats?.recentApplications ?? "-"}</div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-5 shadow-sm border">
+                    <div className="text-sm text-gray-500">Referrals</div>
+                    <div className="text-2xl font-bold text-gray-900 mt-1">{stats?.totalReferrals ?? "-"}</div>
+                    <div className="text-xs text-gray-500 mt-1">Total Clicks: {stats?.totalClicks ?? "-"}</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-xl shadow-sm border p-5">
+                    <div className="text-lg font-semibold text-gray-900 mb-3">Latest Blogs</div>
+                    <div className="space-y-3">
+                      {(blogs || []).slice(0, 5).map((b) => (
+                        <div key={b.id} className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium text-gray-900">{b.title}</div>
+                            <div className="text-xs text-gray-500">{b.slug} • {fmtDate(b.created_at)}</div>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full ${b.is_published ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"}`}>
+                            {b.is_published ? "Published" : "Draft"}
+                          </span>
+                        </div>
+                      ))}
+                      {blogs.length === 0 && <div className="text-sm text-gray-500">No blogs yet.</div>}
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-sm border p-5">
+                    <div className="text-lg font-semibold text-gray-900 mb-3">Latest Applications</div>
+                    <div className="space-y-3">
+                      {(loanApplications || []).slice(0, 5).map((a) => (
+                        <div key={a.id} className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium text-gray-900">{a.user_name || "—"}</div>
+                            <div className="text-xs text-gray-500">
+                              {a.service_name || "—"} • {a.status || "—"} • {fmtDate(a.submitted_at)}
+                            </div>
+                          </div>
+                          <div className="text-sm font-semibold text-gray-900">{fmtCurrencyINR(a.amount)}</div>
+                        </div>
+                      ))}
+                      {loanApplications.length === 0 && <div className="text-sm text-gray-500">No applications yet.</div>}
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
 
-            {/* Reviews */}
-            {activeTab === 'reviews' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h1 className="text-2xl font-bold text-gray-900">Customer Reviews</h1>
-                  <button 
-                    onClick={fetchAllData}
-                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg transition-colors"
+            {/* BLOGS */}
+            {activeTab === "blogs" && (
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-gray-900">Blogs</h2>
+                  <button
+                    onClick={() => setShowBlogModal(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
                   >
-                    Refresh
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Blog
                   </button>
                 </div>
-                
-                <Card>
-                  <CardContent>
-                    {reviews.length === 0 ? (
-                      <div className="text-center py-12">
-                        <p className="text-gray-500 text-lg">No reviews found</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {reviews.map((review) => (
-                          <div key={review.id} className={`bg-white rounded-lg shadow-md p-6 ${review.status !== 'verified' ? 'border-l-4 border-yellow-400' : ''}`}>
-                            <div className="flex justify-between">
-                              <div>
-                                <h3 className="font-semibold text-lg">{review.name}</h3>
-                                <p className="text-sm text-gray-600">{review.email}</p>
-                                {review.phone && <p className="text-sm text-gray-600">{review.phone}</p>}
-                              </div>
-                              <div className="flex items-center">
-                                <span className="text-sm text-gray-500 mr-2">Rating:</span>
-                                <div className="flex">
-                                  {[...Array(5)].map((_, i) => (
-                                    <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'text-yellow-500 fill-current' : 'text-gray-300'}`} />
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
 
-                            <div className="mt-3">
-                              <p className="text-gray-700">{review.review_text}</p>
-                            </div>
-
-                            <div className="mt-4 text-sm text-gray-600">
-                              <div className="flex justify-between">
-                                <div>
-                                  <span className="font-medium">Status:</span> 
-                                  <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                                    review.status === 'verified' ? 'bg-green-100 text-green-800' :
-                                    review.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                    'bg-yellow-100 text-yellow-800'
-                                  }`}>
-                                    {review.status}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="font-medium">Submitted:</span> {formatDate(review.created_at)}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="mt-4 pt-3 border-t flex justify-end space-x-3">
-                              {review.status === 'pending' && (
-                                <>
-                                  <button 
-                                    onClick={() => handleReviewApproval(review.id, true)}
-                                    className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                                  >
-                                    <Check className="w-4 h-4 mr-1" /> Approve
-                                  </button>
-                                  <button 
-                                    onClick={() => handleReviewApproval(review.id, false)}
-                                    className="flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                                  >
-                                    <XIcon className="w-4 h-4 mr-1" /> Reject
-                                  </button>
-                                </>
-                              )}
-                              <button 
-                                onClick={() => handleDeleteReview(review.id)}
-                                className="flex items-center px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"
+                <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Title</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Slug</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Created</th>
+                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {filteredBlogs.map((b) => (
+                          <tr key={b.id}>
+                            <td className="px-4 py-3 font-medium text-gray-900">{b.title}</td>
+                            <td className="px-4 py-3 text-gray-700">{b.slug}</td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full ${
+                                  b.is_published ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"
+                                }`}
                               >
-                                <Trash2 className="w-4 h-4 mr-1" /> Delete
+                                {b.is_published ? "Published" : "Draft"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{fmtDate(b.created_at)}</td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                onClick={() => handleDeleteBlog(b.id)}
+                                className="inline-flex items-center justify-center p-2 rounded-md hover:bg-red-50 text-red-600"
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" />
                               </button>
-                            </div>
-                          </div>
+                            </td>
+                          </tr>
                         ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
+                        {filteredBlogs.length === 0 && (
+                          <tr>
+                            <td className="px-4 py-6 text-sm text-gray-500" colSpan={5}>
+                              No blogs found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
             )}
 
-            {/* Regulatory Updates */}
-            {activeTab === 'regulatory' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h1 className="text-2xl font-bold text-gray-900">Regulatory Updates</h1>
-                  <button 
+            {/* REGULATORY */}
+            {activeTab === "regulatory" && (
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-gray-900">Regulatory Updates</h2>
+                  <button
                     onClick={() => setShowRegulatoryModal(true)}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
                   >
@@ -2286,75 +1677,66 @@ const handleAddBlog = async (e: React.FormEvent) => {
                     Add Update
                   </button>
                 </div>
-                
-                <Card>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+
+                <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Title</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Category</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Active</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Created</th>
+                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {filteredRegulatory.map((ru) => (
+                          <tr key={ru.id}>
+                            <td className="px-4 py-3 font-medium text-gray-900">{ru.title}</td>
+                            <td className="px-4 py-3 text-gray-700">{ru.category}</td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs px-2 py-1 rounded-full ${ru.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"}`}>
+                                {ru.is_active ? "Yes" : "No"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{fmtDate(ru.created_at)}</td>
+                            <td className="px-4 py-3 text-right space-x-2">
+                              <button
+                                onClick={() => toggleRegulatory(ru.id, ru.is_active)}
+                                className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+                              >
+                                {ru.is_active ? "Disable" : "Enable"}
+                              </button>
+                              <button
+                                onClick={() => deleteRegulatory(ru.id)}
+                                className="inline-flex items-center justify-center p-2 rounded-md hover:bg-red-50 text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {regulatoryUpdates.map((update) => (
-                            <tr key={update.id}>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">{update.title}</div>
-                                <div className="text-sm text-gray-500 line-clamp-2">{update.content}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  update.category === 'RBI' 
-                                    ? 'bg-blue-100 text-blue-800' 
-                                    : 'bg-green-100 text-green-800'
-                                }`}>
-                                  {update.category}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  update.is_active 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {update.is_active ? 'Active' : 'Inactive'}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {update.display_order}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button className="text-blue-600 hover:text-blue-900 mr-3">
-                                  Edit
-                                </button>
-                                <button 
-                                  onClick={() => handleDeleteRegulatoryUpdate(update.id)}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                        ))}
+                        {filteredRegulatory.length === 0 && (
+                          <tr>
+                            <td className="px-4 py-6 text-sm text-gray-500" colSpan={5}>
+                              No regulatory updates found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
             )}
 
-            {/* Events */}
-            {activeTab === 'events' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h1 className="text-2xl font-bold text-gray-900">Events</h1>
-                  <button 
+            {/* EVENTS */}
+            {activeTab === "events" && (
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-gray-900">Events</h2>
+                  <button
                     onClick={() => setShowEventModal(true)}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
                   >
@@ -2362,82 +1744,66 @@ const handleAddBlog = async (e: React.FormEvent) => {
                     Add Event
                   </button>
                 </div>
-                
-                <Card>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+
+                <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Title</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Active</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Created</th>
+                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {filteredEvents.map((ev) => (
+                          <tr key={ev.id}>
+                            <td className="px-4 py-3 font-medium text-gray-900">{ev.title}</td>
+                            <td className="px-4 py-3 text-gray-700">{fmtDate(ev.event_date)}</td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs px-2 py-1 rounded-full ${ev.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"}`}>
+                                {ev.is_active ? "Yes" : "No"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{fmtDate(ev.created_at)}</td>
+                            <td className="px-4 py-3 text-right space-x-2">
+                              <button
+                                onClick={() => toggleEvent(ev.id, ev.is_active)}
+                                className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+                              >
+                                {ev.is_active ? "Disable" : "Enable"}
+                              </button>
+                              <button
+                                onClick={() => deleteEvent(ev.id)}
+                                className="inline-flex items-center justify-center p-2 rounded-md hover:bg-red-50 text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {events.map((event) => (
-                            <tr key={event.id}>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  <div className="flex-shrink-0 h-10 w-10">
-                                    {event.image_url ? (
-                                      <img className="h-10 w-10 rounded-md object-cover" src={event.image_url} alt={event.title} />
-                                    ) : (
-                                      <div className="h-10 w-10 rounded-md bg-gray-200 flex items-center justify-center">
-                                        <Calendar className="h-6 w-6 text-gray-400" />
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="ml-4">
-                                    <div className="text-sm font-medium text-gray-900">{event.title}</div>
-                                    <div className="text-sm text-gray-500 line-clamp-2">{event.description}</div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {formatDate(event.event_date)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  event.is_active 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {event.is_active ? 'Active' : 'Inactive'}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {event.display_order}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button className="text-blue-600 hover:text-blue-900 mr-3">
-                                  Edit
-                                </button>
-                                <button 
-                                  onClick={() => handleDeleteEvent(event.id)}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                        ))}
+                        {filteredEvents.length === 0 && (
+                          <tr>
+                            <td className="px-4 py-6 text-sm text-gray-500" colSpan={5}>
+                              No events found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
             )}
 
-            {/* Testimonial Videos */}
-            {activeTab === 'videos' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h1 className="text-2xl font-bold text-gray-900">Testimonial Videos</h1>
-                  <button 
+            {/* VIDEOS */}
+            {activeTab === "videos" && (
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-gray-900">Testimonial Videos</h2>
+                  <button
                     onClick={() => setShowVideoModal(true)}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
                   >
@@ -2445,167 +1811,310 @@ const handleAddBlog = async (e: React.FormEvent) => {
                     Add Video
                   </button>
                 </div>
-                
-                <Card>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {testimonialVideos.map((video) => (
-                        <div key={video.id} className="border rounded-lg overflow-hidden">
-                          <div className="aspect-video bg-gray-200 relative">
-                            {video.image_url ? (
-                              <img 
-                                src={video.image_url} 
-                                alt={video.title} 
-                                className="w-full h-full object-cover"
-                              />
-                            ) : video.video_url ? (
-                              <div className="w-full h-full flex items-center justify-center bg-black bg-opacity-20">
-                                <Video className="h-12 w-12 text-white" />
-                              </div>
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Video className="h-12 w-12 text-gray-400" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="p-4">
-                            <h3 className="font-medium text-gray-900">{video.title}</h3>
-                            <p className="text-sm text-gray-500 mt-1">{video.customer_name}, {video.customer_location}</p>
-                            <p className="text-sm text-gray-600 mt-2 line-clamp-2">{video.description}</p>
-                            <div className="flex items-center justify-between mt-4">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                video.is_active 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
-                                {video.is_active ? 'Active' : 'Inactive'}
+
+                <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Title</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Customer</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Active</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Created</th>
+                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {filteredVideos.map((v) => (
+                          <tr key={v.id}>
+                            <td className="px-4 py-3 font-medium text-gray-900">{v.title}</td>
+                            <td className="px-4 py-3 text-gray-700">
+                              {v.customer_name} {v.customer_location ? `• ${v.customer_location}` : ""}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs px-2 py-1 rounded-full ${v.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"}`}>
+                                {v.is_active ? "Yes" : "No"}
                               </span>
-                              <div className="flex space-x-2">
-                                <button className="text-blue-600 hover:text-blue-900">
-                                  <Edit className="h-4 w-4" />
-                                </button>
-                                <button 
-                                  onClick={() => handleDeleteVideo(video.id)}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{fmtDate(v.created_at)}</td>
+                            <td className="px-4 py-3 text-right space-x-2">
+                              <button
+                                onClick={() => toggleVideo(v.id, v.is_active)}
+                                className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+                              >
+                                {v.is_active ? "Disable" : "Enable"}
+                              </button>
+                              <button
+                                onClick={() => deleteVideo(v.id)}
+                                className="inline-flex items-center justify-center p-2 rounded-md hover:bg-red-50 text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {filteredVideos.length === 0 && (
+                          <tr>
+                            <td className="px-4 py-6 text-sm text-gray-500" colSpan={5}>
+                              No testimonial videos found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
             )}
 
-            {/* Eligibility Submissions */}
-            {activeTab === 'eligibility' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h1 className="text-2xl font-bold text-gray-900">Eligibility Submissions</h1>
-                  <button 
-                    onClick={fetchAllData}
-                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg transition-colors"
-                  >
-                    Refresh
-                  </button>
+            {/* USERS */}
+            {activeTab === "users-list" && (
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-gray-900">Users</h2>
                 </div>
-                
-                <Card>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applicant</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salary & EMI</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Eligibility</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted</th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+
+                <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Phone</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Created</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {filteredUsers.map((u) => (
+                          <tr key={u.id}>
+                            <td className="px-4 py-3 font-medium text-gray-900">{u.name}</td>
+                            <td className="px-4 py-3 text-gray-700">{u.email}</td>
+                            <td className="px-4 py-3 text-gray-700">{u.phone || "-"}</td>
+                            <td className="px-4 py-3 text-gray-700">{fmtDate(u.created_at)}</td>
                           </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {eligibilitySubmissions.map((submission) => (
-                            <tr key={submission.id}>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">{submission.name}</div>
-                                <div className="text-sm text-gray-500">Age: {submission.age}, {submission.employment_type}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">{submission.email}</div>
-                                <div className="text-sm text-gray-500">{submission.phone}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">₹{submission.monthly_salary.toLocaleString()}/month</div>
-                                <div className="text-sm text-gray-500">Existing EMI: ₹{submission.existing_emi.toLocaleString()}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-green-600">₹{Math.round(submission.eligible_loan_amount).toLocaleString()}</div>
-                                <div className="text-sm text-gray-500">EMI: ₹{Math.round(submission.affordable_emi).toLocaleString()}</div>
-                                <div className="text-sm text-gray-500">{submission.desired_tenure_years} years @ {submission.interest_rate}%</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  submission.status === 'contacted' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : submission.status === 'reviewed' 
-                                      ? 'bg-blue-100 text-blue-800' 
-                                      : 'bg-yellow-100 text-yellow-800'
-                                }`}>
-                                  {submission.status}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {formatDate(submission.created_at)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button 
-                                  onClick={() => handleUpdateEligibilityStatus(submission.id, 'pending')}
-                                  className="text-yellow-600 hover:text-yellow-900 mr-3"
-                                  disabled={submission.status === 'pending'}
+                        ))}
+                        {filteredUsers.length === 0 && (
+                          <tr>
+                            <td className="px-4 py-6 text-sm text-gray-500" colSpan={4}>
+                              No users found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* REVIEWS */}
+            {activeTab === "reviews" && (
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-gray-900">Reviews</h2>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Rating</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Text</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Approved</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Created</th>
+                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {filteredReviews.map((r) => (
+                          <tr key={r.id}>
+                            <td className="px-4 py-3 font-medium text-gray-900">{r.name || "-"}</td>
+                            <td className="px-4 py-3 text-gray-700">{r.rating ?? "-"}</td>
+                            <td className="px-4 py-3 text-gray-700 max-w-lg">
+                              <div className="line-clamp-2">{r.review_text || "-"}</div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs px-2 py-1 rounded-full ${r.is_approved ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"}`}>
+                                {r.is_approved ? "Yes" : "No"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{fmtDate(r.created_at)}</td>
+                            <td className="px-4 py-3 text-right space-x-2">
+                              {!r.is_approved && (
+                                <button
+                                  onClick={() => handleApproveReview(r.id)}
+                                  className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
                                 >
-                                  Pending
+                                  Approve
                                 </button>
-                                <button 
-                                  onClick={() => handleUpdateEligibilityStatus(submission.id, 'reviewed')}
-                                  className="text-blue-600 hover:text-blue-900 mr-3"
-                                  disabled={submission.status === 'reviewed'}
-                                >
-                                  Reviewed
-                                </button>
-                                <button 
-                                  onClick={() => handleUpdateEligibilityStatus(submission.id, 'contacted')}
-                                  className="text-green-600 hover:text-green-900 mr-3"
-                                  disabled={submission.status === 'contacted'}
-                                >
-                                  Contacted
-                                </button>
-                                <button 
-                                  onClick={() => handleDeleteEligibilitySubmission(submission.id)}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                              )}
+                              <button
+                                onClick={() => handleDeleteReview(r.id)}
+                                className="inline-flex items-center justify-center p-2 rounded-md hover:bg-red-50 text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {filteredReviews.length === 0 && (
+                          <tr>
+                            <td className="px-4 py-6 text-sm text-gray-500" colSpan={6}>
+                              No reviews found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* APPLICATIONS */}
+            {activeTab === "applications" && (
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-gray-900">Loan Applications</h2>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Service</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Submitted</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {filteredApplications.map((a) => (
+                          <tr key={a.id}>
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-gray-900">{a.user_name || "-"}</div>
+                              <div className="text-xs text-gray-500">{a.user_email || "-"}</div>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{a.service_name || "-"}</td>
+                            <td className="px-4 py-3 text-gray-700">{fmtCurrencyINR(a.amount)}</td>
+                            <td className="px-4 py-3 text-gray-700">{a.status || "-"}</td>
+                            <td className="px-4 py-3 text-gray-700">{fmtDate(a.submitted_at)}</td>
+                          </tr>
+                        ))}
+                        {filteredApplications.length === 0 && (
+                          <tr>
+                            <td className="px-4 py-6 text-sm text-gray-500" colSpan={5}>
+                              No applications found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* REFERRALS */}
+            {activeTab === "referrals" && (
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-gray-900">Referrals</h2>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Referrer</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Referred</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Created</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {filteredReferrals.map((r) => (
+                          <tr key={r.id}>
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-gray-900">{r.referrer_name || "-"}</div>
+                              <div className="text-xs text-gray-500">{r.referrer_email || "-"}</div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-gray-900">{r.referred_name || "-"}</div>
+                              <div className="text-xs text-gray-500">{r.referred_email || "-"}</div>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{r.status || "-"}</td>
+                            <td className="px-4 py-3 text-gray-700">{fmtDate(r.created_at)}</td>
+                          </tr>
+                        ))}
+                        {filteredReferrals.length === 0 && (
+                          <tr>
+                            <td className="px-4 py-6 text-sm text-gray-500" colSpan={4}>
+                              No referrals found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ELIGIBILITY */}
+            {activeTab === "eligibility" && (
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-gray-900">Eligibility Submissions</h2>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Phone</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Salary</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Eligible</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Created</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {filteredEligibility.map((el) => (
+                          <tr key={el.id}>
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-gray-900">{el.name}</div>
+                              <div className="text-xs text-gray-500">{el.employment_type}</div>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{el.phone}</td>
+                            <td className="px-4 py-3 text-gray-700">{fmtCurrencyINR(el.monthly_salary)}</td>
+                            <td className="px-4 py-3 text-gray-700">{fmtCurrencyINR(el.eligible_loan_amount)}</td>
+                            <td className="px-4 py-3 text-gray-700">{fmtDate(el.created_at)}</td>
+                          </tr>
+                        ))}
+                        {filteredEligibility.length === 0 && (
+                          <tr>
+                            <td className="px-4 py-6 text-sm text-gray-500" colSpan={5}>
+                              No eligibility submissions found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </main>
       </div>
     </div>
   );
-};
-
-export default AdminDashboardClean;
+}
