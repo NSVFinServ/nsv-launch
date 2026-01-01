@@ -157,13 +157,13 @@ const slugify = (s: string) =>
 
 const quillModules = {
   toolbar: [
-    ["bold", "italic", "underline", "strike"],
-    [{ list: "bullet" }, { list: "ordered" }],
-    [{ header: [1, 2, 3, 4, false] }],
+    [{ header: [1, 2, 3, 4, 5, 6, false] }],
+    ['bold', 'italic', 'underline', 'strike'],
+    [{ list: 'ordered' }, { list: 'bullet' }],
     [{ align: [] }],
-    ["link"],
-    ["clean"],
-  ],
+    ['link', 'image'],
+    ['clean']
+  ]
 };
 
 const quillFormats = [
@@ -1027,13 +1027,14 @@ export default function AdminDashboardClean() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Blog Content *</label>
                   <div className="border rounded-md overflow-hidden">
-                    <ReactQuill
-                      theme="snow"
-                      value={newBlog.content}
-                      onChange={(v) => setNewBlog((prev) => ({ ...prev, content: v }))}
-                      modules={quillModules}
-                      formats={quillFormats}
+                   <ReactQuill
+                        value={newBlog.content}
+                        onChange={(value) => setNewBlog({ ...newBlog, content: value })}
+                        modules={quillModules}
+                        theme="snow"
+                        className="bg-white"
                     />
+
                   </div>
                 </div>
 
