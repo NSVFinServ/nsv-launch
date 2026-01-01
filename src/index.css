@@ -19,3 +19,9 @@
 .ql-picker-options::-webkit-scrollbar-track {
   background: transparent;
 }
+.ql-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: white;
+}
