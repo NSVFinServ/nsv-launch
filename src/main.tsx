@@ -41,7 +41,7 @@ function AOSInitializer() {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <HelmetProvider>
+    <HelmetProvider prioritizeSeoTags>
       <BrowserRouter>
         <AOSInitializer />
 
