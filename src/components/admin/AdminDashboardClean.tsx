@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { API_BASE_URL } from "@/lib/api";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+import Quill from "quill";
+
 
 import {
   BarChart3,
@@ -385,7 +387,33 @@ export default function AdminDashboardClean() {
     if (!guardAuth()) return;
     fetchAllData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const editor = quillRef.current?.getEditor();
+    if (!editor) return;
+  
+    // Strip Word/MS Office styling + unwanted attributes
+    editor.clipboard.addMatcher(Node.ELEMENT_NODE, (node, delta) => {
+      // Remove inline styles and MSO classes
+      delta.ops = delta.ops.map((op: any) => {
+        if (op.attributes) {
+          // Remove random style garbage
+          delete op.attributes.background;
+          delete op.attributes.color;
+          delete op.attributes.font;
+          delete op.attributes.size;
+        }
+        return op;
+      });
+      return delta;
+    });
+  
+    // Convert pasted content to cleaner text when Word dumps huge formatting
+    editor.root.addEventListener("paste", (e: ClipboardEvent) => {
+      // If Word HTML is present, Quill will parse it;
+      // This prevents extreme styling and keeps structure.
+      // (No need to stopDefault; the matcher above cleans.)
+    });
+  
+  }, [showBlogModal]);
 
   // ---------- handlers: blog ----------
   const handleBlogImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -477,6 +505,51 @@ export default function AdminDashboardClean() {
       showActionMessage("Failed to delete blog.", "error");
     }
   };
+
+  // --- Soft line break (<br>) support for Shift+Enter ---
+      const Embed = Quill.import("blots/embed");
+      
+      class BreakBlot extends Embed {
+        static blotName = "break";
+        static tagName = "BR";
+      }
+      Quill.register(BreakBlot);
+      
+      // --- Quill modules (toolbar + keyboard + clipboard cleanup) ---
+      const quillRef = useRef<ReactQuill | null>(null);
+      
+      const quillModules = useMemo(() => {
+        return {
+          toolbar: [
+            [{ header: [1, 2, 3, 4, 5, 6, false] }],
+            ["bold", "italic", "underline", "strike"],
+            [{ list: "ordered" }, { list: "bullet" }],
+            [{ align: [] }],
+            ["blockquote", "code-block"],
+            ["link", "image"],
+            ["clean"],
+          ],
+          keyboard: {
+            bindings: {
+              // Shift+Enter inserts a <br> inside the SAME list item / paragraph
+              shiftEnter: {
+                key: 13,
+                shiftKey: true,
+                handler: function (range: any) {
+                  const quill = (this as any).quill;
+                  quill.insertEmbed(range.index, "break", true, "user");
+                  quill.setSelection(range.index + 1, 0, "silent");
+                  return false;
+                },
+              },
+            },
+          },
+          clipboard: {
+            matchVisual: false,
+          },
+        };
+      }, []);
+
 
   // ---------- handlers: reviews ----------
   const handleApproveReview = async (id: number) => {
@@ -1025,18 +1098,22 @@ export default function AdminDashboardClean() {
 
                 {/* content */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Blog Content *</label>
-                  <div className="border rounded-md overflow-hidden">
-                   <ReactQuill
-                        value={newBlog.content}
-                        onChange={(value) => setNewBlog({ ...newBlog, content: value })}
-                        modules={quillModules}
-                        theme="snow"
-                        className="bg-white"
-                    />
-
-                  </div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Blog Content *
+                </label>
+              
+                <div className="bg-white">
+                  <ReactQuill
+                    ref={quillRef}
+                    value={newBlog.content}
+                    onChange={(value) => setNewBlog({ ...newBlog, content: value })}
+                    modules={quillModules}
+                    theme="snow"
+                    className="rounded-md"
+                  />
                 </div>
+              </div>
+
 
                 {/* seo */}
                 <div className="border rounded-md p-4 bg-gray-50 space-y-3">
