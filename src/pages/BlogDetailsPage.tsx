@@ -21,7 +21,7 @@ interface Blog {
   created_at?: string | null;
 }
 
-const SITE_URL = import.meta.env.VITE_SITE_URL || ""; // set in Vercel env if you want canonical
+const SITE_URL = (import.meta.env.VITE_SITE_URL || "").replace(/\/+$/, "");
 
 export default function BlogDetails() {
   const { slug } = useParams();
@@ -34,11 +34,15 @@ export default function BlogDetails() {
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${API_BASE_URL}/blogs/${slug}`);
+        const res = await fetch(`${API_BASE_URL}/blogs/${encodeURIComponent(slug)}`);
         if (!res.ok) throw new Error("Not found");
         const data = await res.json();
+
+        // Debug quickly if needed:
+        // console.log("BLOG API:", data);
+
         setBlog(data);
-      } catch (e) {
+      } catch {
         setBlog(null);
       } finally {
         setLoading(false);
@@ -55,20 +59,44 @@ export default function BlogDetails() {
 
   const metaTitle = blog.meta_title?.trim() || blog.title;
   const metaDesc = blog.meta_description?.trim() || blog.description;
+  const metaKeywords = blog.keywords?.trim() || ""; // blog-specific keywords
+
+  const canonical = SITE_URL ? `${SITE_URL}/blog/${blog.slug}` : "";
+  const ogImage = blog.thumbnail && SITE_URL
+    ? (blog.thumbnail.startsWith("http") ? blog.thumbnail : `${SITE_URL}${blog.thumbnail}`)
+    : (blog.thumbnail || "");
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <Helmet>
-        <title>{metaTitle}</title>
-        <meta name="description" content={metaDesc} />
-        {blog.keywords?.trim() ? <meta name="keywords" content={blog.keywords} /> : null}
-        {SITE_URL ? <link rel="canonical" href={`${SITE_URL}/blog/${blog.slug}`} /> : null}
-        <meta property="og:title" content={metaTitle} />
-        <meta property="og:description" content={metaDesc} />
+      <Helmet prioritizeSeoTags>
+        {/* IMPORTANT: use key="" so Helmet replaces any existing meta tags */}
+        <title key="title">{metaTitle}</title>
+
+        <meta key="meta-description" name="description" content={metaDesc} />
+        {metaKeywords ? <meta key="meta-keywords" name="keywords" content={metaKeywords} /> : null}
+
+        {canonical ? <link key="canonical" rel="canonical" href={canonical} /> : null}
+
+        {/* Open Graph */}
+        <meta key="og-title" property="og:title" content={metaTitle} />
+        <meta key="og-description" property="og:description" content={metaDesc} />
+        {canonical ? <meta key="og-url" property="og:url" content={canonical} /> : null}
+        <meta key="og-type" property="og:type" content="article" />
+        {ogImage ? <meta key="og-image" property="og:image" content={ogImage} /> : null}
+
+        {/* Twitter */}
+        <meta key="tw-card" name="twitter:card" content="summary_large_image" />
+        <meta key="tw-title" name="twitter:title" content={metaTitle} />
+        <meta key="tw-description" name="twitter:description" content={metaDesc} />
+        {ogImage ? <meta key="tw-image" name="twitter:image" content={ogImage} /> : null}
       </Helmet>
 
       {blog.thumbnail ? (
-        <img src={blog.thumbnail} alt={blog.title} className="w-full h-64 object-cover rounded-xl mb-6" />
+        <img
+          src={blog.thumbnail}
+          alt={blog.title}
+          className="w-full h-64 object-cover rounded-xl mb-6"
+        />
       ) : null}
 
       <div className="text-sm text-gray-500 mb-2">
@@ -77,10 +105,8 @@ export default function BlogDetails() {
       </div>
 
       <h1 className="text-3xl font-bold text-gray-900 mb-4">{blog.title}</h1>
-
       {blog.description ? <p className="text-gray-700 mb-6">{blog.description}</p> : null}
 
-      {/* ✅ Render Quill HTML safely */}
       <article className="prose max-w-none" dangerouslySetInnerHTML={{ __html: cleanHtml }} />
     </div>
   );
