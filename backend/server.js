@@ -386,7 +386,12 @@ app.put(
       return res.json({ message: 'Blog updated successfully', blog: updatedRows[0] });
     } catch (err) {
       console.error('Admin update blog error:', err);
-      return res.status(500).json({ error: 'Failed to update blog' });
+      try {
+        const msg = err && err.message ? err.message : String(err);
+        return res.status(500).json({ error: 'Failed to update blog', detail: msg });
+      } catch (e) {
+        return res.status(500).json({ error: 'Failed to update blog' });
+      }
     }
   }
 );
