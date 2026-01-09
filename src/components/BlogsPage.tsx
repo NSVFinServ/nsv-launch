@@ -101,7 +101,7 @@ export default function BlogsPage() {
   const pageUrl = `${siteBase}/blogs`;
   const title = "Blogs & Financial Insights | NSV Finserv";
   const description =
-    "Loan guidance, CIBIL tips, eligibility insights & smart finance articles by NSV Finserv.";
+    "Discover finance blogs by nsvfinserv with insights on loans, EMIs, credit scores, and better money management.";
 
   // --- JSON-LD for Blog list ---
   const blogListJsonLd = useMemo(() => {
