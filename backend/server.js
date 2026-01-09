@@ -249,10 +249,6 @@ app.post(
         is_published,
       } = req.body;
 
-      console.log('Create blog: content sample:', typeof content === 'string' ? content.slice(0,200) : String(content).slice(0,200));
-      console.log('Create blog: contains <h2>?', typeof content === 'string' && content.includes('<h2'));
-      console.log('Create blog: contains &lt;h2&gt;?', typeof content === 'string' && content.includes('&lt;h2'));
-
       if (!title || !content) {
         return res.status(400).json({ error: 'Title and content are required' });
       }
@@ -339,9 +335,6 @@ app.put(
       } = req.body || {};
 
       const rawSlug = (req.body.slug || '').toString().trim();
-      console.log('Update blog id=', blogId, 'content sample:', typeof req.body.content === 'string' ? req.body.content.slice(0,200) : String(req.body.content).slice(0,200));
-      console.log('Update blog: contains <h2>?', typeof req.body.content === 'string' && req.body.content.includes('<h2'));
-      console.log('Update blog: contains &lt;h2&gt;?', typeof req.body.content === 'string' && req.body.content.includes('&lt;h2'));
       const slugSource = rawSlug || title || existing.slug || existing.title;
       let slug = String(slugSource)
         .toLowerCase()
@@ -426,12 +419,6 @@ app.get('/api/blogs/:slug', async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Blog not found' });
     }
-
-    try {
-      console.log('Fetch blog slug=', slug, 'stored content sample:', typeof rows[0].content === 'string' ? rows[0].content.slice(0,200) : String(rows[0].content).slice(0,200));
-      console.log('Stored contains <h2>?', typeof rows[0].content === 'string' && rows[0].content.includes('<h2'));
-      console.log('Stored contains &lt;h2&gt;?', typeof rows[0].content === 'string' && rows[0].content.includes('&lt;h2'));
-    } catch (e) {}
 
     res.json(rows[0]);
   } catch (err) {
