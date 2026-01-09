@@ -253,10 +253,22 @@ app.post(
         return res.status(400).json({ error: 'Title and content are required' });
       }
 
-      const slug = title
+      const rawSlug = (req.body.slug || '').toString().trim();
+      const slugSource = rawSlug || title;
+      let slug = String(slugSource)
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
         .replace(/^-|-$/g, '');
+
+      // If slug becomes empty for any reason, fall back to a title-derived slug
+      if (!slug) {
+        slug = String(title)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '');
+      }
 
       const thumbnail = req.file
         ? `/uploads/${req.file.filename}`
