@@ -25,6 +25,7 @@ import {
   Video,
   X,
 } from "lucide-react";
+import { Edit } from "lucide-react";
 
 type ActionType = "success" | "error";
 
@@ -258,6 +259,7 @@ export default function AdminDashboardClean() {
     description: "",
     content: "",
     author: "",
+    id: null as number | null,
     category: "",
     meta_title: "",
     meta_description: "",
@@ -433,6 +435,7 @@ export default function AdminDashboardClean() {
       description: "",
       content: "",
       author: "",
+      id: null,
       category: "",
       meta_title: "",
       meta_description: "",
@@ -485,6 +488,71 @@ export default function AdminDashboardClean() {
     } catch (e) {
       console.error(e);
       showActionMessage("Failed to create blog.", "error");
+    }
+  };
+
+  const openEditBlog = (b: Blog) => {
+    setNewBlog({
+      id: b.id,
+      title: b.title || "",
+      slug: b.slug || "",
+      description: b.description || "",
+      content: b.content || "",
+      author: b.author || "",
+      category: b.category || "",
+      meta_title: b.meta_title || "",
+      meta_description: b.meta_description || "",
+      keywords: b.keywords || "",
+      is_published: !!b.is_published,
+    });
+    setBlogImagePreview(b.thumbnail || null);
+    setBlogImage(null);
+    setSlugTouched(true);
+    setShowBlogModal(true);
+  };
+
+  const handleUpdateBlog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guardAuth()) return;
+    if (!newBlog.id) return showActionMessage("Missing blog id.", "error");
+
+    try {
+      if (!newBlog.title.trim()) return showActionMessage("Blog title is required.", "error");
+      if (!newBlog.slug.trim()) return showActionMessage("Slug is required.", "error");
+      if (!newBlog.content.trim()) return showActionMessage("Content is required.", "error");
+
+      const formData = new FormData();
+      formData.append("title", newBlog.title.trim());
+      formData.append("slug", newBlog.slug.trim());
+      formData.append("description", newBlog.description || "");
+      formData.append("content", newBlog.content);
+      formData.append("author", newBlog.author || "");
+      formData.append("category", newBlog.category || "");
+      formData.append("meta_title", (newBlog.meta_title || "").trim() || newBlog.title.trim());
+      formData.append("meta_description", (newBlog.meta_description || "").trim() || (newBlog.description || ""));
+      formData.append("keywords", newBlog.keywords || "");
+      formData.append("is_published", newBlog.is_published ? "1" : "0");
+      if (blogImage) formData.append("thumbnail", blogImage);
+
+      const res = await fetch(`${API_BASE_URL}/admin/blogs/${newBlog.id}`, {
+        method: "PUT",
+        headers: headersAuthOnly,
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const msg = await safeJson(res);
+        console.error(msg);
+        throw new Error(typeof msg === "string" ? msg : "Failed to update blog");
+      }
+
+      showActionMessage("Blog updated successfully.", "success");
+      setShowBlogModal(false);
+      resetBlogModal();
+      fetchAllData();
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to update blog.", "error");
     }
   };
 
@@ -996,7 +1064,7 @@ export default function AdminDashboardClean() {
           <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Create Blog</h3>
+                <h3 className="text-lg font-semibold">{newBlog.id ? "Edit Blog" : "Create Blog"}</h3>
                 <button
                   onClick={() => {
                     setShowBlogModal(false);
@@ -1008,7 +1076,7 @@ export default function AdminDashboardClean() {
                 </button>
               </div>
 
-              <form onSubmit={handleAddBlog} className="space-y-4">
+              <form onSubmit={newBlog.id ? handleUpdateBlog : handleAddBlog} className="space-y-4">
                 {/* title */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Blog Title *</label>
@@ -1158,7 +1226,7 @@ export default function AdminDashboardClean() {
                   Publish immediately
                 </label>
 
-                <div className="flex justify-end gap-3 pt-2">
+                  <div className="flex justify-end gap-3 pt-2">
                   <button
                     type="button"
                     className="px-4 py-2 border rounded-md"
@@ -1170,7 +1238,7 @@ export default function AdminDashboardClean() {
                     Cancel
                   </button>
                   <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                    Create Blog
+                    {newBlog.id ? "Update Blog" : "Create Blog"}
                   </button>
                 </div>
               </form>
@@ -1718,13 +1786,22 @@ export default function AdminDashboardClean() {
                             </td>
                             <td className="px-4 py-3 text-gray-700">{fmtDate(b.created_at)}</td>
                             <td className="px-4 py-3 text-right">
-                              <button
-                                onClick={() => handleDeleteBlog(b.id)}
-                                className="inline-flex items-center justify-center p-2 rounded-md hover:bg-red-50 text-red-600"
-                                title="Delete"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
+                              <div className="inline-flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => openEditBlog(b)}
+                                  className="inline-flex items-center justify-center p-2 rounded-md hover:bg-gray-100 text-blue-600"
+                                  title="Edit"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteBlog(b.id)}
+                                  className="inline-flex items-center justify-center p-2 rounded-md hover:bg-red-50 text-red-600"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
