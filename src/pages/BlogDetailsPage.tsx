@@ -51,7 +51,17 @@ export default function BlogDetails() {
   }, [slug]);
 
   const cleanHtml = useMemo(() => {
-    return blog?.content ? DOMPurify.sanitize(blog.content) : "";
+    if (!blog?.content) return "";
+    let raw = blog.content;
+    // If content was HTML-escaped (e.g. &lt;h2&gt;), decode entities first
+    if (raw.includes("&lt;") || raw.includes("&gt;")) {
+      try {
+        const txt = document.createElement("textarea");
+        txt.innerHTML = raw;
+        raw = txt.value;
+      } catch {}
+    }
+    return DOMPurify.sanitize(raw);
   }, [blog?.content]);
 
   if (loading) return <div className="max-w-4xl mx-auto p-6">Loading…</div>;
