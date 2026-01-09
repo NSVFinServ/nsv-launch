@@ -303,6 +303,93 @@ app.post(
     }
   }
 );
+
+
+// Admin: Update existing blog by id
+app.put(
+  '/api/admin/blogs/:id',
+  authenticateToken,
+  isAdmin,
+  upload.single('thumbnail'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const blogId = Number(id);
+      if (!Number.isFinite(blogId)) return res.status(400).json({ error: 'Invalid blog id' });
+
+      // Ensure blog exists
+      const [existingRows] = await promisePool.query('SELECT * FROM blogs WHERE id = ? LIMIT 1', [blogId]);
+      if (existingRows.length === 0) return res.status(404).json({ error: 'Blog not found' });
+      const existing = existingRows[0];
+
+      const {
+        title,
+        description,
+        content,
+        author,
+        category,
+        meta_title,
+        meta_description,
+        keywords,
+        is_published,
+      } = req.body || {};
+
+      const rawSlug = (req.body.slug || '').toString().trim();
+      const slugSource = rawSlug || title || existing.slug || existing.title;
+      let slug = String(slugSource)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+
+      if (!slug) {
+        slug = String(existing.slug || existing.title)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '');
+      }
+
+      // Check for slug collision with other blogs
+      const [dup] = await promisePool.query('SELECT id FROM blogs WHERE slug = ? AND id <> ? LIMIT 1', [slug, blogId]);
+      if (dup.length > 0) return res.status(400).json({ error: 'Slug already in use' });
+
+      const thumbnail = req.file ? `/uploads/${req.file.filename}` : existing.thumbnail;
+
+      // Build dynamic update
+      const fields = [];
+      const params = [];
+
+      if (typeof title === 'string' && title.trim() && title.trim() !== existing.title) { fields.push('title = ?'); params.push(title.trim()); }
+      if (typeof description === 'string') { fields.push('description = ?'); params.push(description || null); }
+      if (typeof content === 'string') { fields.push('content = ?'); params.push(content || null); }
+      if (typeof author === 'string') { fields.push('author = ?'); params.push(author || null); }
+      if (typeof category === 'string') { fields.push('category = ?'); params.push(category || null); }
+      if (typeof meta_title === 'string') { fields.push('meta_title = ?'); params.push(meta_title || null); }
+      if (typeof meta_description === 'string') { fields.push('meta_description = ?'); params.push(meta_description || null); }
+      if (typeof keywords === 'string') { fields.push('keywords = ?'); params.push(keywords || null); }
+      if (typeof is_published !== 'undefined') { fields.push('is_published = ?'); params.push(is_published ? 1 : 0); }
+
+      // slug and thumbnail always set (even if unchanged) to keep consistency
+      fields.push('slug = ?'); params.push(slug);
+      fields.push('thumbnail = ?'); params.push(thumbnail);
+
+      if (fields.length === 0) return res.status(400).json({ error: 'No valid fields to update' });
+
+      fields.push('updated_at = NOW()');
+      const sql = `UPDATE blogs SET ${fields.join(', ')} WHERE id = ?`;
+      params.push(blogId);
+
+      await promisePool.query(sql, params);
+
+      const [updatedRows] = await promisePool.query('SELECT * FROM blogs WHERE id = ? LIMIT 1', [blogId]);
+      return res.json({ message: 'Blog updated successfully', blog: updatedRows[0] });
+    } catch (err) {
+      console.error('Admin update blog error:', err);
+      return res.status(500).json({ error: 'Failed to update blog' });
+    }
+  }
+);
 // Public: Get all blogs
 app.get('/api/blogs', async (req, res) => {
   try {
