@@ -376,7 +376,6 @@ app.put(
 
       if (fields.length === 0) return res.status(400).json({ error: 'No valid fields to update' });
 
-      fields.push('updated_at = NOW()');
       const sql = `UPDATE blogs SET ${fields.join(', ')} WHERE id = ?`;
       params.push(blogId);
 
