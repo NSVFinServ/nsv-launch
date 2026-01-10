@@ -261,6 +261,7 @@ export default function AdminDashboardClean() {
     author: "",
     id: null as number | null,
     category: "",
+    thumbnail_alt: "",
     meta_title: "",
     meta_description: "",
     keywords: "",
@@ -437,6 +438,7 @@ export default function AdminDashboardClean() {
       author: "",
       id: null,
       category: "",
+      thumbnail_alt: "",
       meta_title: "",
       meta_description: "",
       keywords: "",
@@ -467,6 +469,7 @@ export default function AdminDashboardClean() {
       formData.append("meta_description", (newBlog.meta_description || "").trim() || (newBlog.description || ""));
       formData.append("keywords", newBlog.keywords || "");
       formData.append("is_published", newBlog.is_published ? "1" : "0");
+      formData.append("thumbnail_alt", (newBlog as any).thumbnail_alt || "");
       if (blogImage) formData.append("thumbnail", blogImage);
 
       const res = await fetch(`${API_BASE_URL}/admin/blogs`, {
@@ -503,6 +506,7 @@ export default function AdminDashboardClean() {
       meta_title: b.meta_title || "",
       meta_description: b.meta_description || "",
       keywords: b.keywords || "",
+      thumbnail_alt: (b as any).thumbnail_alt || "",
       is_published: !!b.is_published,
     });
     setBlogImagePreview(b.thumbnail || null);
@@ -532,6 +536,7 @@ export default function AdminDashboardClean() {
       formData.append("meta_description", (newBlog.meta_description || "").trim() || (newBlog.description || ""));
       formData.append("keywords", newBlog.keywords || "");
       formData.append("is_published", newBlog.is_published ? "1" : "0");
+      formData.append("thumbnail_alt", (newBlog as any).thumbnail_alt || "");
       if (blogImage) formData.append("thumbnail", blogImage);
 
       const res = await fetch(`${API_BASE_URL}/admin/blogs/${newBlog.id}`, {
@@ -1160,8 +1165,22 @@ export default function AdminDashboardClean() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Thumbnail</label>
                   <input type="file" accept="image/*" onChange={handleBlogImageChange} />
                   {blogImagePreview && (
-                    <img src={blogImagePreview} alt="Preview" className="mt-2 h-24 rounded-md object-cover" />
+                    <img
+                      src={blogImagePreview}
+                      alt={(newBlog as any).thumbnail_alt || "Preview"}
+                      className="mt-2 h-24 rounded-md object-cover"
+                    />
                   )}
+
+                  <div className="mt-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Thumbnail Alt Text</label>
+                    <input
+                      className="w-full px-3 py-2 border rounded-md"
+                      value={(newBlog as any).thumbnail_alt}
+                      onChange={(e) => setNewBlog((prev) => ({ ...prev, thumbnail_alt: e.target.value }))}
+                      placeholder="Short description for accessibility"
+                    />
+                  </div>
                 </div>
 
                 {/* content */}
