@@ -40,10 +40,7 @@ const Hero = () => {
 
             {/* Trust indicators */}
             <div className="flex items-center space-x-4 text-sm text-gray-500" data-aos="fade-up" data-aos-delay="500">
-              <div className="flex items-center space-x-1">
-                <Shield className="w-4 h-4 text-green-600" />
-                <span>RBI Registered</span>
-              </div>
+              
               <div className="flex items-center space-x-1">
                 <Shield className="w-4 h-4 text-green-600" />
                 <span>100% Secure</span>
