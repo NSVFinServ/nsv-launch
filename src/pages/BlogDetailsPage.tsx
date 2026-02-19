@@ -22,6 +22,11 @@ interface Blog {
 }
 
 const SITE_URL = (import.meta.env.VITE_SITE_URL || "").replace(/\/+$/, "");
+const resolveAssetUrl = (url?: string | null) => {
+  if (!url) return "";
+  if (url.startsWith("http")) return url;
+  return `${API_ORIGIN}${url}`; // /uploads/... should come from backend origin
+};
 
 export default function BlogDetails() {
   const { slug } = useParams();
@@ -71,10 +76,8 @@ export default function BlogDetails() {
   const metaDesc = blog.meta_description?.trim() || blog.description;
   const metaKeywords = blog.keywords?.trim() || ""; // blog-specific keywords
 
-  const canonical = SITE_URL ? `${SITE_URL}/blog/${blog.slug}` : "";
-  const ogImage = blog.thumbnail && SITE_URL
-    ? (blog.thumbnail.startsWith("http") ? blog.thumbnail : `${SITE_URL}${blog.thumbnail}`)
-    : (blog.thumbnail || "");
+  const canonical = SITE_URL ? `${SITE_URL}/blogs/${blog.slug}` : "";
+  const ogImage = resolveAssetUrl(blog.thumbnail);
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -103,7 +106,7 @@ export default function BlogDetails() {
 
       {blog.thumbnail ? (
         <img
-          src={blog.thumbnail}
+          src={resolveAssetUrl(blog.thumbnail)}
           alt={blog.title}
           className="w-full h-64 object-cover rounded-xl mb-6"
         />
