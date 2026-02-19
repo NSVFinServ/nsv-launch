@@ -28,7 +28,7 @@ interface Blog {
 const resolveUrl = (url?: string | null): string => {
   if (!url) return "";
   if (url.startsWith("http")) return url;
-  return `${API_BASE_URL}${url}`;
+  return `${API_ORIGIN}${url}`;
 };
 
 const stripMarkdown = (s: string) =>
