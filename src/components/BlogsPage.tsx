@@ -97,7 +97,7 @@ export default function BlogsPage() {
   }, []);
 
   // --- SEO (Landing page) ---
-  const siteBase = "https://nsvfinserv.com"; // ✅ change if different
+  const siteBase = "https://www.nsvfinserv.com";
   const pageUrl = `${siteBase}/blogs`;
   const title = "Blogs & Financial Insights | NSV Finserv";
   const description =
