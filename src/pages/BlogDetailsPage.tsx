@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import DOMPurify from "dompurify";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, API_ORIGIN } from "@/lib/api";
 
 interface Blog {
   id: number;
