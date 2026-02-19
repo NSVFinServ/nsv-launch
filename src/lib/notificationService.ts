@@ -63,7 +63,7 @@ const NOTIFICATION_CONFIG = {
   },
   
   ENABLED: true,
-  WEBSITE: 'nsvfinserv.com',
+  WEBSITE: 'www.nsvfinserv.com',
   TIMEOUT: 15000, // 15 seconds for Render cold starts
 };
 
