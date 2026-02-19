@@ -54,6 +54,15 @@ export default function BlogDetails() {
       }
     })();
   }, [slug]);
+  useEffect(() => {
+  if (!loading && blog) {
+    // Give React one tick to render the blog content
+    setTimeout(() => {
+      document.dispatchEvent(new Event("prerender-ready"));
+    }, 0);
+  }
+}, [loading, blog]);
+
 
   const cleanHtml = useMemo(() => {
     if (!blog?.content) return "";
