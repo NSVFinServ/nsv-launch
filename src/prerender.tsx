@@ -8,14 +8,12 @@ const API_BASE_URL =
   process.env.VITE_API_BASE_URL || "https://nsvfinserv-api.onrender.com/api";
 
 async function getPrerenderData(url: string) {
-  // /blogs -> list
   if (url === "/blogs") {
     const res = await fetch(`${API_BASE_URL}/blogs`);
     const data = await res.json();
     return { blogs: Array.isArray(data) ? data : [] };
   }
 
-  // /blogs/:slug -> details
   const m = url.match(/^\/blogs\/([^/]+)$/);
   if (m) {
     const slug = decodeURIComponent(m[1]);
@@ -34,23 +32,27 @@ export async function prerender(data: { url: string }) {
   const html = renderToString(
     <HelmetProvider context={helmetContext}>
       <StaticRouter location={data.url}>
-        {/* Provide data via a global script the client can reuse */}
         <AppRoutes prerenderData={prerenderData as any} />
       </StaticRouter>
     </HelmetProvider>
   );
 
-  const { helmet } = helmetContext;
+  const helmet = helmetContext.helmet;
 
+  // ✅ inject head as plain HTML string
   const head =
     (helmet?.title?.toString?.() || "") +
     (helmet?.meta?.toString?.() || "") +
     (helmet?.link?.toString?.() || "") +
     (helmet?.script?.toString?.() || "");
 
+  // ✅ inject initial data so hydration doesn't refetch instantly
   const dataScript = `<script>window.__PRERENDER_DATA__=${JSON.stringify(
     prerenderData
   ).replace(/</g, "\\u003c")}</script>`;
 
-  return { html, head: head + dataScript };
+  return {
+    html,
+    head: head + dataScript,
+  };
 }
