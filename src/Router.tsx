@@ -24,13 +24,17 @@ function ClientOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-export default function AppRoutes() {
+type AppRoutesProps = {
+  prerenderData?: any; // keep as any for now; you can strongly type later
+};
+
+export default function AppRoutes({ prerenderData }: AppRoutesProps) {
   return (
     <Routes>
       {/* Public SEO routes */}
       <Route path="/" element={<App />} />
-      <Route path="/blogs" element={<BlogsPage />} />
-      <Route path="/blogs/:slug" element={<BlogDetailsPage />} />
+      <Route path="/blogs" element={<BlogsPage prerenderData={prerenderData} />} />
+      <Route path="/blogs/:slug" element={<BlogDetailsPage prerenderData={prerenderData} />} />
       <Route path="/terms-conditions" element={<TermsConditions />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
