@@ -27,12 +27,12 @@ export default defineConfig(async () => {
     plugins: [
       react(),
       vitePrerenderPlugin({
-        renderTarget: "#root",
-        prerenderScript: path.resolve(__dirname, "src/prerender.tsx"),
-
-        // ✅ only prerender SEO pages
-        additionalPrerenderRoutes: ["/", "/blogs", ...blogRoutes],
-      }),
+  renderTarget: "#root",
+  prerenderScript: path.resolve(__dirname, "src/prerender.tsx"),
+  additionalPrerenderRoutes: ["/", "/blogs", ...blogRoutes],
+  // ✅ makes sure head gets injected
+  addCopyScript: false,
+}),
     ],
     resolve: {
       alias: { "@": resolve("./src") },
