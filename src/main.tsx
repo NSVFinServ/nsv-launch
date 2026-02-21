@@ -1,70 +1,20 @@
-import { StrictMode, useEffect } from "react";
-import { createRoot } from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { HelmetProvider } from "react-helmet-async";
-
-import App from "./App.tsx";
-import LoginPage from "./components/login/page.tsx";
-import SignupPage from "./components/signup/page.tsx";
-import ForgotPasswordPage from "./components/forgot-password/page.tsx";
-import ResetPasswordPage from "./components/reset-password/page.tsx";
-import LoanApplicationPage from "./components/loan-application/page.tsx";
-import AdminDashboardClean from "./components/admin/AdminDashboardClean.tsx";
-import TestEmailPage from "./components/test-email/page.tsx";
-import EmailDisplayPage from "./components/email-display/page.tsx";
-import TermsConditions from "./components/terms-conditions/page.tsx";
-import BlogsPage from "./components/BlogsPage";
-import BlogDetailsPage from "./pages/BlogDetailsPage";
-import PrivacyPolicy from "./components/privacy-policy/page.tsx";
-import AskExpertPage from "./components/askexpert/page.tsx";
-import ReferralPage from "./components/referalpage/page.tsx";
-
-import AOS from "aos";
-import "aos/dist/aos.css";
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import AppRoutes from "./Router";
 import "./index.css";
 
-import { Analytics } from "@vercel/analytics/react";
+// Optional: if you have analytics
+// import { trackPageView } from "./lib/analytics";
 
-// ✅ Wrap AOS.init in a component + useEffect (safer than running at module load)
-function AOSInitializer() {
-  useEffect(() => {
-    AOS.init({
-      duration: 800,
-      easing: "ease-in-out",
-      once: false,
-      mirror: false,
-    });
-  }, []);
+const root = ReactDOM.createRoot(
+  document.getElementById("root") as HTMLElement
+);
 
-  return null;
-}
-
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <HelmetProvider prioritizeSeoTags>
-      <BrowserRouter>
-        <AOSInitializer />
-
-        <Routes>
-          <Route path="/" element={<App />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/blogs" element={<BlogsPage />} />
-          <Route path="/blogs/:slug" element={<BlogDetailsPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/loan-application" element={<LoanApplicationPage />} />
-          <Route path="/referalpage" element={<ReferralPage />} />
-          <Route path="/admin" element={<AdminDashboardClean />} />
-          <Route path="/test-email" element={<TestEmailPage />} />
-          <Route path="/askexpert" element={<AskExpertPage />} />
-          <Route path="/email-display" element={<EmailDisplayPage />} />
-          <Route path="/terms-conditions" element={<TermsConditions />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-        </Routes>
-
-        <Analytics />
-      </BrowserRouter>
-    </HelmetProvider>
-  </StrictMode>
+root.render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  </React.StrictMode>
 );
