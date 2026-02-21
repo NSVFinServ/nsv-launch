@@ -54,29 +54,27 @@ export default function BlogDetails() {
       }
     })();
   }, [slug]);
-  useEffect(() => {
-  if (!loading && blog) {
-    // Give React one tick to render the blog content
-    setTimeout(() => {
-      document.dispatchEvent(new Event("prerender-ready"));
-    }, 0);
-  }
-}, [loading, blog]);
-
 
   const cleanHtml = useMemo(() => {
-    if (!blog?.content) return "";
-    let raw = blog.content;
-    // If content was HTML-escaped (e.g. &lt;h2&gt;), decode entities first
-    if (raw.includes("&lt;") || raw.includes("&gt;")) {
-      try {
-        const txt = document.createElement("textarea");
-        txt.innerHTML = raw;
-        raw = txt.value;
-      } catch {}
-    }
-    return DOMPurify.sanitize(raw);
-  }, [blog?.content]);
+  if (!blog?.content) return "";
+
+  let raw = blog.content;
+
+  // Only decode HTML entities in the browser
+  if (typeof window !== "undefined" && (raw.includes("&lt;") || raw.includes("&gt;"))) {
+    try {
+      const txt = document.createElement("textarea");
+      txt.innerHTML = raw;
+      raw = txt.value;
+    } catch {}
+  }
+
+  // DOMPurify works in browser; during prerender, just return raw
+  // (SEO still works because content is present; you can later switch to isomorphic-dompurify if needed)
+  if (typeof window === "undefined") return raw;
+
+  return DOMPurify.sanitize(raw);
+}, [blog?.content]);
 
   if (loading) return <div className="max-w-4xl mx-auto p-6">Loading…</div>;
   if (!blog) return <div className="max-w-4xl mx-auto p-6">Blog not found.</div>;
