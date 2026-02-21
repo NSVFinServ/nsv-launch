@@ -1,47 +1,28 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import { resolve } from "path";
-import { vitePrerenderPlugin } from "vite-prerender-plugin";
-import path from "path";
+import React from "react";
+import { renderToString } from "react-dom/server";
+import { StaticRouter } from "react-router";
+import { HelmetProvider } from "react-helmet-async";
+import AppRoutes from "./Router";
 
-export default defineConfig(async () => {
-  const API_BASE_URL =
-    process.env.VITE_API_BASE_URL || "https://nsvfinserv-api.onrender.com/api";
+export async function prerender(data: { url: string }) {
+  const helmetContext: any = {};
 
-  let blogRoutes: string[] = [];
-  try {
-    const res = await fetch(`${API_BASE_URL}/blogs`);
-    const data = await res.json();
-    const published = Array.isArray(data)
-      ? data.filter((b: any) => b?.is_published)
-      : [];
-    blogRoutes = published
-      .map((b: any) => b?.slug)
-      .filter(Boolean)
-      .map((slug: string) => `/blogs/${slug}`);
-  } catch {
-    blogRoutes = [];
-  }
+  const html = renderToString(
+    <HelmetProvider context={helmetContext}>
+      <StaticRouter location={data.url}>
+        <AppRoutes />
+      </StaticRouter>
+    </HelmetProvider>
+  );
 
-  return {
-    plugins: [
-      react(),
-      vitePrerenderPlugin({
-        renderTarget: "#root",
-        prerenderScript: path.resolve(__dirname, "src/prerender.tsx"),
+  // vite-prerender-plugin can consume `head` if provided
+  const { helmet } = helmetContext;
 
-        // ✅ only prerender SEO pages
-        additionalPrerenderRoutes: ["/", "/blogs", ...blogRoutes],
-      }),
-    ],
-    resolve: {
-      alias: { "@": resolve("./src") },
-      dedupe: ["react", "react-dom"],
-    },
+  const head =
+    (helmet?.title?.toString?.() || "") +
+    (helmet?.meta?.toString?.() || "") +
+    (helmet?.link?.toString?.() || "") +
+    (helmet?.script?.toString?.() || "");
 
-    // ✅ makes Helmet SSR more reliable in some Vite/Vercel combos
-    ssr: {
-      noExternal: ["react-helmet-async"],
-    },
-  };
-});
+  return { html, head };
+}
