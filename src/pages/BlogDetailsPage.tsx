@@ -21,20 +21,32 @@ interface Blog {
   created_at?: string | null;
 }
 
+type BlogDetailsProps = {
+  prerenderData?: {
+    blog?: Blog;
+  };
+};
+
 const SITE_URL = (import.meta.env.VITE_SITE_URL || "").replace(/\/+$/, "");
 const resolveAssetUrl = (url?: string | null) => {
   if (!url) return "";
   if (url.startsWith("http")) return url;
-  return `${API_ORIGIN}${url}`; // /uploads/... should come from backend origin
+  return `${API_ORIGIN}${url}`;
 };
 
-export default function BlogDetails() {
+export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
   const { slug } = useParams();
-  const [blog, setBlog] = useState<Blog | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  const initialBlog = prerenderData?.blog ?? null;
+
+  const [blog, setBlog] = useState<Blog | null>(initialBlog);
+  const [loading, setLoading] = useState<boolean>(!initialBlog);
 
   useEffect(() => {
     if (!slug) return;
+
+    // ✅ If prerender already injected the same blog, do not refetch immediately
+    if (blog?.slug === slug) return;
 
     (async () => {
       try {
@@ -42,10 +54,6 @@ export default function BlogDetails() {
         const res = await fetch(`${API_BASE_URL}/blogs/${encodeURIComponent(slug)}`);
         if (!res.ok) throw new Error("Not found");
         const data = await res.json();
-
-        // Debug quickly if needed:
-        // console.log("BLOG API:", data);
-
         setBlog(data);
       } catch {
         setBlog(null);
@@ -53,35 +61,35 @@ export default function BlogDetails() {
         setLoading(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   const cleanHtml = useMemo(() => {
-  if (!blog?.content) return "";
+    const raw = blog?.content ?? "";
+    if (!raw) return "";
 
-  let raw = blog.content;
+    // During prerender/build: do not touch DOM, return raw HTML as-is
+    if (typeof window === "undefined") return raw;
 
-  // Only decode HTML entities in the browser
-  if (typeof window !== "undefined" && (raw.includes("&lt;") || raw.includes("&gt;"))) {
-    try {
-      const txt = document.createElement("textarea");
-      txt.innerHTML = raw;
-      raw = txt.value;
-    } catch {}
-  }
+    let decoded = raw;
 
-  // DOMPurify works in browser; during prerender, just return raw
-  // (SEO still works because content is present; you can later switch to isomorphic-dompurify if needed)
-  if (typeof window === "undefined") return raw;
+    if (decoded.includes("&lt;") || decoded.includes("&gt;")) {
+      try {
+        const txt = document.createElement("textarea");
+        txt.innerHTML = decoded;
+        decoded = txt.value;
+      } catch {}
+    }
 
-  return DOMPurify.sanitize(raw);
-}, [blog?.content]);
+    return DOMPurify.sanitize(decoded);
+  }, [blog?.content]);
 
   if (loading) return <div className="max-w-4xl mx-auto p-6">Loading…</div>;
   if (!blog) return <div className="max-w-4xl mx-auto p-6">Blog not found.</div>;
 
   const metaTitle = blog.meta_title?.trim() || blog.title;
   const metaDesc = blog.meta_description?.trim() || blog.description;
-  const metaKeywords = blog.keywords?.trim() || ""; // blog-specific keywords
+  const metaKeywords: string = blog.keywords?.trim() || "";
 
   const canonical = SITE_URL ? `${SITE_URL}/blogs/${blog.slug}` : "";
   const ogImage = resolveAssetUrl(blog.thumbnail);
@@ -89,11 +97,12 @@ export default function BlogDetails() {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <Helmet prioritizeSeoTags>
-        {/* IMPORTANT: use key="" so Helmet replaces any existing meta tags */}
         <title key="title">{metaTitle}</title>
 
         <meta key="meta-description" name="description" content={metaDesc} />
-        {metaKeywords ? <meta key="meta-keywords" name="keywords" content={metaKeywords} /> : null}
+        {metaKeywords ? (
+          <meta key="meta-keywords" name="keywords" content={metaKeywords} />
+        ) : null}
 
         {canonical ? <link key="canonical" rel="canonical" href={canonical} /> : null}
 
