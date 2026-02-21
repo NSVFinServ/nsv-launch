@@ -7,7 +7,7 @@
   "routes": [
     { "handle": "filesystem" },
 
-    { "src": "/sitemap.xml", "dest": "/api/sitemap" },
+    { "src": "/sitemap.xml", "dest": "/src/lib/api/sitemap" },
     { "src": "/robots.txt", "dest": "/robots.txt" },
 
     { "src": "/(.*)", "dest": "/index.html" }
