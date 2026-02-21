@@ -2,15 +2,15 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { API_BASE_URL, API_ORIGIN } from "@/lib/api";
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from "lucide-react";
 
 interface Blog {
   id: number;
   title: string;
   slug: string;
 
-  description?: string | null;  // ✅ DB column
-  content?: string | null;      // (optional for list)
+  description?: string | null;
+  content?: string | null;
 
   thumbnail?: string | null;
   created_at?: string | null;
@@ -24,6 +24,12 @@ interface Blog {
 
   is_published?: number | boolean;
 }
+
+type BlogsPageProps = {
+  prerenderData?: {
+    blogs?: Blog[];
+  };
+};
 
 const resolveUrl = (url?: string | null): string => {
   if (!url) return "";
@@ -58,12 +64,17 @@ const BlogsSkeleton = ({ count = 6 }: { count?: number }) => (
   </div>
 );
 
-export default function BlogsPage() {
-  const [blogs, setBlogs] = useState<Blog[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function BlogsPage({ prerenderData }: BlogsPageProps) {
+  const initialBlogs = Array.isArray(prerenderData?.blogs) ? prerenderData!.blogs! : [];
+
+  const [blogs, setBlogs] = useState<Blog[]>(initialBlogs);
+  const [loading, setLoading] = useState<boolean>(initialBlogs.length === 0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // ✅ If prerender already injected blogs, do not refetch on first paint
+    if (blogs.length > 0) return;
+
     const controller = new AbortController();
 
     (async () => {
@@ -85,7 +96,7 @@ export default function BlogsPage() {
         }
 
         const data = (await res.json()) as Blog[];
-        setBlogs(data);
+        setBlogs(Array.isArray(data) ? data : []);
       } catch (e: any) {
         if (e.name !== "AbortError") setError(e.message || "Something went wrong");
       } finally {
@@ -94,6 +105,7 @@ export default function BlogsPage() {
     })();
 
     return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- SEO (Landing page) ---
@@ -101,26 +113,26 @@ export default function BlogsPage() {
   const pageUrl = `${siteBase}/blogs`;
   const title = "Blogs & Financial Insights | NSV Finserv";
   const description =
-    "Read expert blogs and financial articles by nsvfinserv on loans, credit, EMIs, and smart money decisions to help you plan your financial future.";
+    "Read expert blogs and financial articles by NSV Finserv on loans, credit, EMIs, and smart money decisions to help you plan your financial future.";
 
   // --- JSON-LD for Blog list ---
   const blogListJsonLd = useMemo(() => {
-  if (!blogs.length) return null;
+    if (!blogs.length) return null;
 
-  const items = blogs.slice(0, 20).map((b, idx) => ({
-    "@type": "ListItem",
-    position: idx + 1,
-    url: `${siteBase}/blogs/${b.slug}`,
-    name: b.title,
-  }));
+    const items = blogs.slice(0, 20).map((b, idx) => ({
+      "@type": "ListItem",
+      position: idx + 1,
+      url: `${siteBase}/blogs/${b.slug}`,
+      name: b.title,
+    }));
 
-  return {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: "NSV Finserv Blog",
-    itemListElement: items,
-  };
-}, [blogs]);
+    return {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      name: "NSV Finserv Blog",
+      itemListElement: items,
+    };
+  }, [blogs]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -140,11 +152,9 @@ export default function BlogsPage() {
         <meta name="twitter:description" content={description} />
 
         {/* JSON-LD */}
-       {blogListJsonLd && (
-  <script type="application/ld+json">
-    {JSON.stringify(blogListJsonLd)}
-  </script>
-)}
+        {blogListJsonLd && (
+          <script type="application/ld+json">{JSON.stringify(blogListJsonLd)}</script>
+        )}
       </Helmet>
 
       {/* HERO */}
@@ -158,22 +168,25 @@ export default function BlogsPage() {
           </p>
         </div>
       </div>
-      {/*Back to Home Page*/}
+
+      {/* Back to Home */}
       <div className="bg-white shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-6">
-      <Link to="/" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4">
+          <Link
+            to="/"
+            className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+          >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Home
           </Link>
         </div>
       </div>
+
       {/* CONTENT */}
       <div className="max-w-7xl mx-auto px-6 py-14">
         {loading && <BlogsSkeleton count={6} />}
 
-        {!loading && error && (
-          <p className="text-center text-red-600">{error}</p>
-        )}
+        {!loading && error && <p className="text-center text-red-600">{error}</p>}
 
         {!loading && !error && blogs.length === 0 && (
           <p className="text-center text-gray-500">No blogs published yet.</p>
@@ -188,35 +201,35 @@ export default function BlogsPage() {
               >
                 {/* Thumbnail */}
                 <div className="h-48 bg-gray-200">
-                  {blog.thumbnail && (
+                  {blog.thumbnail ? (
                     <img
                       src={resolveUrl(blog.thumbnail)}
                       alt={blog.title}
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Body */}
                 <div className="p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                      {blog.title}
-                    </h3>
-                  
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-3">
-                      {stripMarkdown(blog.description || "") ||
-                        stripMarkdown(blog.content || "").slice(0, 160)}
-                    </p>
-                  
-                    <Link
-                      to={`/blogs/${blog.slug}`}
-                      className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                    >
-                      Read article →
-                    </Link>
-                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                    {blog.title}
+                  </h3>
+
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                    {stripMarkdown(blog.description || "") ||
+                      stripMarkdown(blog.content || "").slice(0, 160)}
+                  </p>
+
+                  <Link
+                    to={`/blogs/${blog.slug}`}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                  >
+                    Read article →
+                  </Link>
                 </div>
+              </div>
             ))}
           </div>
         )}
