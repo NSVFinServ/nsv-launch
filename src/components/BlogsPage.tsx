@@ -95,14 +95,6 @@ export default function BlogsPage() {
 
     return () => controller.abort();
   }, []);
-  useEffect(() => {
-  if (blogs.length > 0) {
-    setTimeout(() => {
-      document.dispatchEvent(new Event("prerender-ready"));
-    }, 0);
-  }
-}, [blogs]);
-
 
   // --- SEO (Landing page) ---
   const siteBase = "https://www.nsvfinserv.com";
