@@ -7,14 +7,19 @@ const mysql = require('mysql2');
 const multer = require('multer');
 const path = require('path');
 const otpGenerator = require('otp-generator');
-
+const { v2: cloudinary } = require('cloudinary');
 const app = express();
 const PORT = process.env.PORT || 10000;
 // 1) Trust proxy (Render/HTTPS)
 // ---- Proxy & CORS (final strict allow-list) ----
 /* ------------------------ CORS Allow-List (clean) ------------------------- */
 app.set('trust proxy', 1);
-
+// ---------------- CLOUDINARY CONFIG ----------------
+cloudinary.config({
+  cloud_name: "dkg3sps2u",
+  api_key: "736356749136349",
+  api_secret: "0OTthP8KJlA6BUYxh82AwUgin58",
+});
 // Normalize an origin to "protocol://host[:port]" (no path/trailing slash)
 const normalize = (o) => {
   try {
@@ -270,9 +275,35 @@ app.post(
           .replace(/^-|-$/g, '');
       }
 
-      const thumbnail = req.file
-        ? `/uploads/${req.file.filename}`
-        : null;
+      let thumbnail = null;
+
+if (req.file) {
+  const uploadResult = await cloudinary.uploader.upload_stream(
+    {
+      folder: "nsvfinserv/blogs",
+    },
+    async (error, result) => {
+      if (error) {
+        console.error("Cloudinary upload error:", error);
+        throw error;
+      }
+      thumbnail = result.secure_url;
+    }
+  );
+
+  const streamifier = require("streamifier");
+  await new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: "nsvfinserv/blogs" },
+      (error, result) => {
+        if (error) return reject(error);
+        thumbnail = result.secure_url;
+        resolve();
+      }
+    );
+    streamifier.createReadStream(req.file.buffer).pipe(stream);
+  });
+}
 
       await promisePool.query(
         `
@@ -354,8 +385,23 @@ app.put(
       const [dup] = await promisePool.query('SELECT id FROM blogs WHERE slug = ? AND id <> ? LIMIT 1', [slug, blogId]);
       if (dup.length > 0) return res.status(400).json({ error: 'Slug already in use' });
 
-      const thumbnail = req.file ? `/uploads/${req.file.filename}` : existing.thumbnail;
+      let thumbnail = existing.thumbnail;
 
+if (req.file) {
+  const streamifier = require("streamifier");
+
+  await new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: "nsvfinserv/blogs" },
+      (error, result) => {
+        if (error) return reject(error);
+        thumbnail = result.secure_url;
+        resolve();
+      }
+    );
+    streamifier.createReadStream(req.file.buffer).pipe(stream);
+  });
+}
       // Build dynamic update
       const fields = [];
       const params = [];
