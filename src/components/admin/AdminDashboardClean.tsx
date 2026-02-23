@@ -4,6 +4,16 @@ import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import Quill from "quill";
 
+// Blog-thumbnail URL normalizer (STRICTLY for blog images).
+// Supports values stored as absolute URLs (e.g., Cloudinary) or relative paths (/uploads/..).
+const resolveBlogThumbnailUrl = (url?: string | null) => {
+  if (!url) return "";
+  const s = String(url);
+  if (/^https?:\/\//i.test(s)) return s;
+  const p = s.startsWith("/") ? s : `/${s}`;
+  return `${API_BASE_URL}${p}`;
+};
+
 
 import {
   BarChart3,
@@ -26,21 +36,6 @@ import {
   X,
 } from "lucide-react";
 import { Edit } from "lucide-react";
-
-// ---------------- Blog thumbnail URL resolver (blog-images only) ----------------
-// Backend stores thumbnail as a relative path like "/uploads/<file>".
-// For admin preview, resolve it to an absolute URL (without touching other assets).
-const resolveBlogThumbnailUrl = (thumb?: string | null) => {
-  if (!thumb) return null;
-  const t = String(thumb);
-  if (t.startsWith("blob:")) return t;
-  if (/^https?:\/\//i.test(t)) return t;
-  if (t.startsWith("/uploads/")) {
-    const base = String(API_BASE_URL || "").replace(/\/+$/, "");
-    return base ? `${base}${t}` : t;
-  }
-  return t;
-};
 
 type ActionType = "success" | "error";
 
@@ -524,7 +519,7 @@ export default function AdminDashboardClean() {
       thumbnail_alt: (b as any).thumbnail_alt || "",
       is_published: !!b.is_published,
     });
-    setBlogImagePreview(resolveBlogThumbnailUrl(b.thumbnail));
+    setBlogImagePreview(resolveBlogThumbnailUrl(b.thumbnail) || null);
     setBlogImage(null);
     setSlugTouched(true);
     setShowBlogModal(true);
