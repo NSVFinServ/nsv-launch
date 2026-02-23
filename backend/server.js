@@ -16,9 +16,9 @@ const PORT = process.env.PORT || 10000;
 app.set('trust proxy', 1);
 // ---------------- CLOUDINARY CONFIG ----------------
 cloudinary.config({
-  cloud_name: "dkg3sps2u",
-  api_key: "736356749136349",
-  api_secret: "0OTthP8KJlA6BUYxh82AwUgin58",
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 // Normalize an origin to "protocol://host[:port]" (no path/trailing slash)
 const normalize = (o) => {
@@ -232,6 +232,30 @@ const isAdmin = (req, res, next) => {
   if (req?.user?.userId === 'admin') return next();
   return res.status(403).json({ error: 'admin_only' });
 };
+// --- Blog thumbnail upload (memory storage so req.file.buffer exists) ---
+const uploadBlogThumb = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are allowed'), false);
+  }
+});
+
+// Cloudinary helper (buffer -> upload_stream)
+const uploadBufferToCloudinary = (buffer, folder = 'nsvfinserv/blogs') => {
+  const streamifier = require('streamifier');
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
+      }
+    );
+    streamifier.createReadStream(buffer).pipe(stream);
+  });
+};
 // ======================= BLOG APIs =======================
 
 // Admin: Create blog
@@ -239,7 +263,7 @@ app.post(
   '/api/admin/blogs',
   authenticateToken,
   isAdmin,
-  upload.single('thumbnail'),
+  uploadBlogThumb.single('thumbnail'),
   async (req, res) => {
     try {
       const {
@@ -275,36 +299,11 @@ app.post(
           .replace(/^-|-$/g, '');
       }
 
-      let thumbnail = null;
+let thumbnail = null;
 
-if (req.file) {
-  const uploadResult = await cloudinary.uploader.upload_stream(
-    {
-      folder: "nsvfinserv/blogs",
-    },
-    async (error, result) => {
-      if (error) {
-        console.error("Cloudinary upload error:", error);
-        throw error;
-      }
-      thumbnail = result.secure_url;
-    }
-  );
-
-  const streamifier = require("streamifier");
-  await new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      { folder: "nsvfinserv/blogs" },
-      (error, result) => {
-        if (error) return reject(error);
-        thumbnail = result.secure_url;
-        resolve();
-      }
-    );
-    streamifier.createReadStream(req.file.buffer).pipe(stream);
-  });
+if (req.file?.buffer) {
+  thumbnail = await uploadBufferToCloudinary(req.file.buffer, 'nsvfinserv/blogs');
 }
-
       await promisePool.query(
         `
         INSERT INTO blogs
@@ -341,7 +340,7 @@ app.put(
   '/api/admin/blogs/:id',
   authenticateToken,
   isAdmin,
-  upload.single('thumbnail'),
+  uploadBlogThumb.single('thumbnail'),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -387,20 +386,8 @@ app.put(
 
       let thumbnail = existing.thumbnail;
 
-if (req.file) {
-  const streamifier = require("streamifier");
-
-  await new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      { folder: "nsvfinserv/blogs" },
-      (error, result) => {
-        if (error) return reject(error);
-        thumbnail = result.secure_url;
-        resolve();
-      }
-    );
-    streamifier.createReadStream(req.file.buffer).pipe(stream);
-  });
+if (req.file?.buffer) {
+  thumbnail = await uploadBufferToCloudinary(req.file.buffer, 'nsvfinserv/blogs');
 }
       // Build dynamic update
       const fields = [];
