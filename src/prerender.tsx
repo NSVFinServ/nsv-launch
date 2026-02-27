@@ -5,7 +5,7 @@ import { HelmetProvider } from "react-helmet-async";
 import AppRoutes from "./Router";
 
 const API_BASE_URL =
-  process.env.VITE_API_BASE_URL || "https://nsvfinserv-api.onrender.com/api";
+  process.env.VITE_API_BASE_URL || "https://nsvfinserv-api-h7nt.onrender.com/api";
 
 async function getPrerenderData(url: string) {
   if (url === "/blogs") {
