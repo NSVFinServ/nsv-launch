@@ -4,7 +4,7 @@ const SITE_URL = "https://www.nsvfinserv.com";
 const API_BASE_URL =
   process.env.VITE_API_BASE_URL ||
   process.env.API_BASE_URL ||
-  "https://nsvfinserv-api.onrender.com/api";
+  "https://nsvfinserv-api-h7nt.onrender.com/api";
 
 function xmlEscape(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
