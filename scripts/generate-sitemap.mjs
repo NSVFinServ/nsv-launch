@@ -5,7 +5,7 @@ const SITE_URL = (process.env.VITE_SITE_URL || "https://www.nsvfinserv.com").rep
 const API_BASE_URL =
   process.env.VITE_API_BASE_URL ||
   process.env.API_BASE_URL ||
-  "https://nsvfinserv-api.onrender.com/api";
+  "https://nsvfinserv-api-h7nt.onrender.com/api";
 
 const PUBLIC_DIR = path.resolve(process.cwd(), "public");
 const SITEMAP_PATH = path.join(PUBLIC_DIR, "sitemap.xml");
