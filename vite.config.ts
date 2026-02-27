@@ -6,7 +6,7 @@ import path from "path";
 
 export default defineConfig(async () => {
   const API_BASE_URL =
-    process.env.VITE_API_BASE_URL || "https://nsvfinserv-api.onrender.com/api";
+    process.env.VITE_API_BASE_URL || "https://nsvfinserv-api-h7nt.onrender.com";
 
   let blogRoutes: string[] = [];
   try {
