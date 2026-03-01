@@ -10,6 +10,9 @@
 .ql-picker-options::-webkit-scrollbar {
   width: 6px;
 }
+.prose table { width: 100%; border-collapse: collapse; }
+.prose th, .prose td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
+.prose th { background: #f3f4f6; }
 
 .ql-picker-options::-webkit-scrollbar-thumb {
   background-color: #cbd5e1; /* tailwind gray-300 */
