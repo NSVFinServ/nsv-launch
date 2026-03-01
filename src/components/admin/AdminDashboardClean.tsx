@@ -5,7 +5,6 @@ import "react-quill/dist/quill.snow.css";
 import Quill from "quill";
 import QuillBetterTable from "quill-better-table";
 import "quill-better-table/dist/quill-better-table.css";
-const quillRef = useRef<ReactQuill | null>(null);
 
 // Register QuillBetterTable module
 Quill.register(
@@ -240,7 +239,7 @@ async function safeJson(res: Response) {
 
 export default function AdminDashboardClean() {
   const token = localStorage.getItem("token");
-
+  const quillRef = useRef<ReactQuill | null>(null);
   // layout
   const [activeTab, setActiveTab] = useState<
     | "overview"
