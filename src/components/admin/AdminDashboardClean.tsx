@@ -3,7 +3,16 @@ import { API_BASE_URL } from "@/lib/api";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import Quill from "quill";
+import QuillBetterTable from "quill-better-table";
+import "quill-better-table/dist/quill-better-table.css";
 
+// Register QuillBetterTable module
+Quill.register(
+  {
+    "modules/better-table": QuillBetterTable,
+  },
+  true
+);
 // Blog-thumbnail URL normalizer (STRICTLY for blog images).
 // Supports values stored as absolute URLs (e.g., Cloudinary) or relative paths (/uploads/..).
 const resolveBlogThumbnailUrl = (url?: string | null) => {
@@ -175,8 +184,19 @@ const quillModules = {
     [{ list: 'ordered' }, { list: 'bullet' }],
     [{ align: [] }],
     ['link', 'image'],
-    ['clean']
-  ]
+    ['clean'],
+    ["table"], // ✅ add this
+  ],
+  "better-table": {
+    operationMenu: {
+      items: {
+        unmergeCells: { text: "Unmerge cells" },
+      },
+    },
+  },
+  keyboard: {
+    bindings: QuillBetterTable.keyboardBindings,
+  },
 };
 
 const quillFormats = [
@@ -189,6 +209,7 @@ const quillFormats = [
   "header",
   "align",
   "link",
+  "table",
 ];
 
 function fmtDate(dateString?: string) {
