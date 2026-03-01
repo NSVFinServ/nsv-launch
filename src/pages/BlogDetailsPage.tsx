@@ -81,7 +81,10 @@ export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
       } catch {}
     }
 
-    return DOMPurify.sanitize(decoded);
+    return DOMPurify.sanitize(decoded, {
+      ADD_TAGS: ["table", "thead", "tbody", "tr", "td", "th"],
+      ADD_ATTR: ["colspan", "rowspan", "style"],
+    });
   }, [blog?.content]);
 
   if (loading) return <div className="max-w-4xl mx-auto p-6">Loading…</div>;
@@ -136,7 +139,7 @@ export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
       <h1 className="text-3xl font-bold text-gray-900 mb-4">{blog.title}</h1>
       {blog.description ? <p className="text-gray-700 mb-6">{blog.description}</p> : null}
 
-      <article className="prose max-w-none" dangerouslySetInnerHTML={{ __html: cleanHtml }} />
+      <article className="prose max-w-none whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: cleanHtml }} />
     </div>
   );
 }
