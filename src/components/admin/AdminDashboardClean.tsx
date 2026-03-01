@@ -5,6 +5,7 @@ import "react-quill/dist/quill.snow.css";
 import Quill from "quill";
 import QuillBetterTable from "quill-better-table";
 import "quill-better-table/dist/quill-better-table.css";
+const quillRef = useRef<ReactQuill | null>(null);
 
 // Register QuillBetterTable module
 Quill.register(
@@ -619,41 +620,6 @@ export default function AdminDashboardClean() {
       }
       Quill.register(BreakBlot);
       
-      // --- Quill modules (toolbar + keyboard + clipboard cleanup) ---
-      const quillRef = useRef<ReactQuill | null>(null);
-      
-      const quillModules = useMemo(() => {
-        return {
-          toolbar: [
-            [{ header: [1, 2, 3, 4, 5, 6, false] }],
-            ["bold", "italic", "underline", "strike"],
-            [{ list: "ordered" }, { list: "bullet" }],
-            [{ align: [] }],
-            ["blockquote", "code-block"],
-            ["link", "image"],
-            ["clean"],
-          ],
-          keyboard: {
-            bindings: {
-              // Shift+Enter inserts a <br> inside the SAME list item / paragraph
-              shiftEnter: {
-                key: 13,
-                shiftKey: true,
-                handler: function (range: any) {
-                  const quill = (this as any).quill;
-                  quill.insertEmbed(range.index, "break", true, "user");
-                  quill.setSelection(range.index + 1, 0, "silent");
-                  return false;
-                },
-              },
-            },
-          },
-          clipboard: {
-            matchVisual: false,
-          },
-        };
-      }, []);
-
 
   // ---------- handlers: reviews ----------
   const handleApproveReview = async (id: number) => {
@@ -1224,8 +1190,9 @@ export default function AdminDashboardClean() {
                   <ReactQuill
                     ref={quillRef}
                     value={newBlog.content}
-                    onChange={(value) => setNewBlog({ ...newBlog, content: value })}
+                    onChange={(value) => setNewBlog((prev) => ({ ...prev, content: value }))}
                     modules={quillModules}
+                    formats={quillFormats}   // ✅ important
                     theme="snow"
                     className="rounded-md"
                   />
