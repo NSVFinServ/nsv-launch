@@ -2,27 +2,10 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { API_BASE_URL } from "@/lib/api";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+
 import Quill from "quill";
 import QuillBetterTable from "quill-better-table";
 import "quill-better-table/dist/quill-better-table.css";
-
-// Register QuillBetterTable module
-Quill.register(
-  {
-    "modules/better-table": QuillBetterTable,
-  },
-  true
-);
-// Blog-thumbnail URL normalizer (STRICTLY for blog images).
-// Supports values stored as absolute URLs (e.g., Cloudinary) or relative paths (/uploads/..).
-const resolveBlogThumbnailUrl = (url?: string | null) => {
-  if (!url) return "";
-  const s = String(url);
-  if (/^https?:\/\//i.test(s)) return s;
-  const p = s.startsWith("/") ? s : `/${s}`;
-  return `${API_BASE_URL}${p}`;
-};
-
 
 import {
   BarChart3,
@@ -45,6 +28,34 @@ import {
   X,
 } from "lucide-react";
 import { Edit } from "lucide-react";
+
+/* --------------------------------------------------------------------------------
+   Quill plugin registration (MUST be at module scope, runs once)
+--------------------------------------------------------------------------------- */
+
+// Register QuillBetterTable once
+Quill.register({ "modules/better-table": QuillBetterTable }, true);
+
+// Optional: Soft line break (<br>) blot – register once, guard for HMR
+const Embed = Quill.import("blots/embed");
+class BreakBlot extends Embed {
+  static blotName = "break";
+  static tagName = "BR";
+}
+if (!(Quill as any).__break_registered) {
+  Quill.register(BreakBlot, true);
+  (Quill as any).__break_registered = true;
+}
+
+// Blog-thumbnail URL normalizer (STRICTLY for blog images).
+// Supports absolute URLs (e.g., Cloudinary) or relative paths (/uploads/..).
+const resolveBlogThumbnailUrl = (url?: string | null) => {
+  if (!url) return "";
+  const s = String(url);
+  if (/^https?:\/\//i.test(s)) return s;
+  const p = s.startsWith("/") ? s : `/${s}`;
+  return `${API_BASE_URL}${p}`;
+};
 
 type ActionType = "success" | "error";
 
@@ -177,15 +188,20 @@ const slugify = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
+/**
+ * IMPORTANT:
+ * - quill-better-table does NOT expose a "table" format button by default.
+ * - DO NOT include ["table"] in toolbar or "table" in formats, or Quill will warn and may crash.
+ * - We'll add a custom "Insert Table" button ourselves and call better-table API.
+ */
 const quillModules = {
   toolbar: [
     [{ header: [1, 2, 3, 4, 5, 6, false] }],
-    ['bold', 'italic', 'underline', 'strike'],
-    [{ list: 'ordered' }, { list: 'bullet' }],
+    ["bold", "italic", "underline", "strike"],
+    [{ list: "ordered" }, { list: "bullet" }],
     [{ align: [] }],
-    ['link', 'image'],
-    ['clean'],
-    ["table"], // ✅ add this
+    ["link", "image"],
+    ["clean"],
   ],
   "better-table": {
     operationMenu: {
@@ -195,7 +211,7 @@ const quillModules = {
     },
   },
   keyboard: {
-    bindings: QuillBetterTable.keyboardBindings,
+    bindings: (QuillBetterTable as any).keyboardBindings,
   },
 };
 
@@ -209,7 +225,7 @@ const quillFormats = [
   "header",
   "align",
   "link",
-  "table",
+  "image",
 ];
 
 function fmtDate(dateString?: string) {
@@ -238,8 +254,9 @@ async function safeJson(res: Response) {
 }
 
 export default function AdminDashboardClean() {
-  const token = localStorage.getItem("token");
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const quillRef = useRef<ReactQuill | null>(null);
+
   // layout
   const [activeTab, setActiveTab] = useState<
     | "overview"
@@ -362,8 +379,6 @@ export default function AdminDashboardClean() {
     try {
       setLoading(true);
 
-      // Admin endpoints require token; public ones can be fetched without.
-      // We fetch admin list endpoints with token.
       const [
         statsRes,
         usersRes,
@@ -417,19 +432,26 @@ export default function AdminDashboardClean() {
     }
   };
 
+  // Load data once
   useEffect(() => {
     if (!guardAuth()) return;
     fetchAllData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    const editor = quillRef.current?.getEditor();
+  }, []);
+
+  // Add paste-cleaning matcher once per editor instance (when blog modal opens)
+  useEffect(() => {
+    if (!showBlogModal) return;
+
+    const editor = quillRef.current?.getEditor?.();
     if (!editor) return;
-  
-    // Strip Word/MS Office styling + unwanted attributes
-    editor.clipboard.addMatcher(Node.ELEMENT_NODE, (node, delta) => {
-      // Remove inline styles and MSO classes
-      delta.ops = delta.ops.map((op: any) => {
+
+    if ((editor as any).__clean_paste_added) return;
+    (editor as any).__clean_paste_added = true;
+
+    editor.clipboard.addMatcher(Node.ELEMENT_NODE, (_node: any, delta: any) => {
+      delta.ops = (delta.ops || []).map((op: any) => {
         if (op.attributes) {
-          // Remove random style garbage
           delete op.attributes.background;
           delete op.attributes.color;
           delete op.attributes.font;
@@ -439,15 +461,25 @@ export default function AdminDashboardClean() {
       });
       return delta;
     });
-  
-    // Convert pasted content to cleaner text when Word dumps huge formatting
-    editor.root.addEventListener("paste", (e: ClipboardEvent) => {
-      // If Word HTML is present, Quill will parse it;
-      // This prevents extreme styling and keeps structure.
-      // (No need to stopDefault; the matcher above cleans.)
-    });
-  
   }, [showBlogModal]);
+
+  // Custom Insert Table (3x3)
+  const insertTable3x3 = () => {
+    const editor = quillRef.current?.getEditor?.();
+    if (!editor) return;
+
+    try {
+      const tableModule = editor.getModule("better-table");
+      if (!tableModule || typeof tableModule.insertTable !== "function") {
+        showActionMessage("Table module not available.", "error");
+        return;
+      }
+      tableModule.insertTable(3, 3);
+    } catch (e) {
+      console.error(e);
+      showActionMessage("Failed to insert table.", "error");
+    }
+  };
 
   // ---------- handlers: blog ----------
   const handleBlogImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -500,7 +532,7 @@ export default function AdminDashboardClean() {
       formData.append("meta_description", (newBlog.meta_description || "").trim() || (newBlog.description || ""));
       formData.append("keywords", newBlog.keywords || "");
       formData.append("is_published", newBlog.is_published ? "1" : "0");
-      formData.append("thumbnail_alt", (newBlog as any).thumbnail_alt || "");
+      formData.append("thumbnail_alt", newBlog.thumbnail_alt || "");
       if (blogImage) formData.append("thumbnail", blogImage);
 
       const res = await fetch(`${API_BASE_URL}/admin/blogs`, {
@@ -567,7 +599,7 @@ export default function AdminDashboardClean() {
       formData.append("meta_description", (newBlog.meta_description || "").trim() || (newBlog.description || ""));
       formData.append("keywords", newBlog.keywords || "");
       formData.append("is_published", newBlog.is_published ? "1" : "0");
-      formData.append("thumbnail_alt", (newBlog as any).thumbnail_alt || "");
+      formData.append("thumbnail_alt", newBlog.thumbnail_alt || "");
       if (blogImage) formData.append("thumbnail", blogImage);
 
       const res = await fetch(`${API_BASE_URL}/admin/blogs/${newBlog.id}`, {
@@ -609,16 +641,6 @@ export default function AdminDashboardClean() {
       showActionMessage("Failed to delete blog.", "error");
     }
   };
-
-  // --- Soft line break (<br>) support for Shift+Enter ---
-      const Embed = Quill.import("blots/embed");
-      
-      class BreakBlot extends Embed {
-        static blotName = "break";
-        static tagName = "BR";
-      }
-      Quill.register(BreakBlot);
-      
 
   // ---------- handlers: reviews ----------
   const handleApproveReview = async (id: number) => {
@@ -939,6 +961,7 @@ export default function AdminDashboardClean() {
 
   // ---------- filtering ----------
   const filterText = search.trim().toLowerCase();
+
   const filteredBlogs = useMemo(() => {
     if (!filterText) return blogs;
     return blogs.filter((b) =>
@@ -1066,15 +1089,28 @@ export default function AdminDashboardClean() {
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">{newBlog.id ? "Edit Blog" : "Create Blog"}</h3>
-                <button
-                  onClick={() => {
-                    setShowBlogModal(false);
-                    resetBlogModal();
-                  }}
-                  className="p-2 rounded-md hover:bg-gray-100"
-                >
-                  <X className="h-5 w-5 text-gray-700" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Custom Insert Table button */}
+                  <button
+                    type="button"
+                    onClick={insertTable3x3}
+                    className="px-3 py-2 border rounded-md bg-gray-50 hover:bg-gray-100 text-sm"
+                    title="Insert 3x3 table"
+                  >
+                    Insert Table
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowBlogModal(false);
+                      resetBlogModal();
+                    }}
+                    className="p-2 rounded-md hover:bg-gray-100"
+                    title="Close"
+                    type="button"
+                  >
+                    <X className="h-5 w-5 text-gray-700" />
+                  </button>
+                </div>
               </div>
 
               <form onSubmit={newBlog.id ? handleUpdateBlog : handleAddBlog} className="space-y-4">
@@ -1163,7 +1199,7 @@ export default function AdminDashboardClean() {
                   {blogImagePreview && (
                     <img
                       src={blogImagePreview}
-                      alt={(newBlog as any).thumbnail_alt || "Preview"}
+                      alt={newBlog.thumbnail_alt || "Preview"}
                       className="mt-2 h-24 rounded-md object-cover"
                     />
                   )}
@@ -1172,7 +1208,7 @@ export default function AdminDashboardClean() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Thumbnail Alt Text</label>
                     <input
                       className="w-full px-3 py-2 border rounded-md"
-                      value={(newBlog as any).thumbnail_alt}
+                      value={newBlog.thumbnail_alt}
                       onChange={(e) => setNewBlog((prev) => ({ ...prev, thumbnail_alt: e.target.value }))}
                       placeholder="Short description for accessibility"
                     />
@@ -1181,23 +1217,19 @@ export default function AdminDashboardClean() {
 
                 {/* content */}
                 <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Blog Content *
-                </label>
-              
-                <div className="bg-white">
-                  <ReactQuill
-                    ref={quillRef}
-                    value={newBlog.content}
-                    onChange={(value) => setNewBlog((prev) => ({ ...prev, content: value }))}
-                    modules={quillModules}
-                    formats={quillFormats}   // ✅ important
-                    theme="snow"
-                    className="rounded-md"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Blog Content *</label>
+                  <div className="bg-white">
+                    <ReactQuill
+                      ref={quillRef}
+                      value={newBlog.content}
+                      onChange={(value) => setNewBlog((prev) => ({ ...prev, content: value }))}
+                      modules={quillModules as any}
+                      formats={quillFormats}
+                      theme="snow"
+                      className="rounded-md"
+                    />
+                  </div>
                 </div>
-              </div>
-
 
                 {/* seo */}
                 <div className="border rounded-md p-4 bg-gray-50 space-y-3">
@@ -1242,7 +1274,7 @@ export default function AdminDashboardClean() {
                   Publish immediately
                 </label>
 
-                  <div className="flex justify-end gap-3 pt-2">
+                <div className="flex justify-end gap-3 pt-2">
                   <button
                     type="button"
                     className="px-4 py-2 border rounded-md"
@@ -1592,28 +1624,31 @@ export default function AdminDashboardClean() {
         <nav className="mt-4 px-2">
           <div className="space-y-1">
             {navigationItems.map((item, idx) => {
-              if ("divider" in item && item.divider) {
+              if ("divider" in item && (item as any).divider) {
                 return (
-                  <div key={`div-${idx}`} className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    {item.label}
+                  <div
+                    key={`div-${idx}`}
+                    className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  >
+                    {(item as any).label}
                   </div>
                 );
               }
-              const Icon = item.icon;
-              const selected = activeTab === item.id;
+              const Icon = (item as any).icon;
+              const selected = activeTab === (item as any).id;
               return (
                 <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  key={(item as any).id}
+                  onClick={() => setActiveTab((item as any).id)}
                   className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                     selected ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700" : "text-gray-700 hover:bg-gray-100"
                   }`}
                 >
                   <Icon className="mr-3 h-5 w-5" />
-                  {item.label}
-                  {"count" in item && typeof item.count === "number" && (
+                  {(item as any).label}
+                  {"count" in (item as any) && typeof (item as any).count === "number" && (
                     <span className="ml-auto bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-full">
-                      {item.count}
+                      {(item as any).count}
                     </span>
                   )}
                 </button>
@@ -1649,11 +1684,11 @@ export default function AdminDashboardClean() {
                 />
               </div>
 
-              <button className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100">
+              <button className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100" type="button">
                 <Bell className="h-6 w-6" />
               </button>
 
-              <button className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100">
+              <button className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100" type="button">
                 <Settings className="h-6 w-6" />
               </button>
 
@@ -1661,6 +1696,7 @@ export default function AdminDashboardClean() {
                 onClick={handleLogout}
                 className="flex items-center text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100 p-2"
                 title="Logout"
+                type="button"
               >
                 <LogOut className="h-6 w-6" />
               </button>
@@ -1692,10 +1728,7 @@ export default function AdminDashboardClean() {
               <>
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold text-gray-900">Overview</h2>
-                  <button
-                    onClick={fetchAllData}
-                    className="px-4 py-2 border rounded-md bg-white hover:bg-gray-50"
-                  >
+                  <button onClick={fetchAllData} className="px-4 py-2 border rounded-md bg-white hover:bg-gray-50" type="button">
                     Refresh
                   </button>
                 </div>
@@ -1728,9 +1761,15 @@ export default function AdminDashboardClean() {
                         <div key={b.id} className="flex items-center justify-between">
                           <div>
                             <div className="font-medium text-gray-900">{b.title}</div>
-                            <div className="text-xs text-gray-500">{b.slug} • {fmtDate(b.created_at)}</div>
+                            <div className="text-xs text-gray-500">
+                              {b.slug} • {fmtDate(b.created_at)}
+                            </div>
                           </div>
-                          <span className={`text-xs px-2 py-1 rounded-full ${b.is_published ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"}`}>
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full ${
+                              b.is_published ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"
+                            }`}
+                          >
                             {b.is_published ? "Published" : "Draft"}
                           </span>
                         </div>
@@ -1768,6 +1807,7 @@ export default function AdminDashboardClean() {
                   <button
                     onClick={() => setShowBlogModal(true)}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
+                    type="button"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Blog
@@ -1807,6 +1847,7 @@ export default function AdminDashboardClean() {
                                   onClick={() => openEditBlog(b)}
                                   className="inline-flex items-center justify-center p-2 rounded-md hover:bg-gray-100 text-blue-600"
                                   title="Edit"
+                                  type="button"
                                 >
                                   <Edit className="h-4 w-4" />
                                 </button>
@@ -1814,6 +1855,7 @@ export default function AdminDashboardClean() {
                                   onClick={() => handleDeleteBlog(b.id)}
                                   className="inline-flex items-center justify-center p-2 rounded-md hover:bg-red-50 text-red-600"
                                   title="Delete"
+                                  type="button"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
@@ -1843,6 +1885,7 @@ export default function AdminDashboardClean() {
                   <button
                     onClick={() => setShowRegulatoryModal(true)}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
+                    type="button"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Update
@@ -1867,7 +1910,11 @@ export default function AdminDashboardClean() {
                             <td className="px-4 py-3 font-medium text-gray-900">{ru.title}</td>
                             <td className="px-4 py-3 text-gray-700">{ru.category}</td>
                             <td className="px-4 py-3">
-                              <span className={`text-xs px-2 py-1 rounded-full ${ru.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"}`}>
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full ${
+                                  ru.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"
+                                }`}
+                              >
                                 {ru.is_active ? "Yes" : "No"}
                               </span>
                             </td>
@@ -1876,12 +1923,14 @@ export default function AdminDashboardClean() {
                               <button
                                 onClick={() => toggleRegulatory(ru.id, ru.is_active)}
                                 className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+                                type="button"
                               >
                                 {ru.is_active ? "Disable" : "Enable"}
                               </button>
                               <button
                                 onClick={() => deleteRegulatory(ru.id)}
                                 className="inline-flex items-center justify-center p-2 rounded-md hover:bg-red-50 text-red-600"
+                                type="button"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -1910,6 +1959,7 @@ export default function AdminDashboardClean() {
                   <button
                     onClick={() => setShowEventModal(true)}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
+                    type="button"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Event
@@ -1934,7 +1984,11 @@ export default function AdminDashboardClean() {
                             <td className="px-4 py-3 font-medium text-gray-900">{ev.title}</td>
                             <td className="px-4 py-3 text-gray-700">{fmtDate(ev.event_date)}</td>
                             <td className="px-4 py-3">
-                              <span className={`text-xs px-2 py-1 rounded-full ${ev.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"}`}>
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full ${
+                                  ev.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"
+                                }`}
+                              >
                                 {ev.is_active ? "Yes" : "No"}
                               </span>
                             </td>
@@ -1943,12 +1997,14 @@ export default function AdminDashboardClean() {
                               <button
                                 onClick={() => toggleEvent(ev.id, ev.is_active)}
                                 className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+                                type="button"
                               >
                                 {ev.is_active ? "Disable" : "Enable"}
                               </button>
                               <button
                                 onClick={() => deleteEvent(ev.id)}
                                 className="inline-flex items-center justify-center p-2 rounded-md hover:bg-red-50 text-red-600"
+                                type="button"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -1977,6 +2033,7 @@ export default function AdminDashboardClean() {
                   <button
                     onClick={() => setShowVideoModal(true)}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
+                    type="button"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Video
@@ -2003,7 +2060,11 @@ export default function AdminDashboardClean() {
                               {v.customer_name} {v.customer_location ? `• ${v.customer_location}` : ""}
                             </td>
                             <td className="px-4 py-3">
-                              <span className={`text-xs px-2 py-1 rounded-full ${v.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"}`}>
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full ${
+                                  v.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"
+                                }`}
+                              >
                                 {v.is_active ? "Yes" : "No"}
                               </span>
                             </td>
@@ -2012,12 +2073,14 @@ export default function AdminDashboardClean() {
                               <button
                                 onClick={() => toggleVideo(v.id, v.is_active)}
                                 className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+                                type="button"
                               >
                                 {v.is_active ? "Disable" : "Enable"}
                               </button>
                               <button
                                 onClick={() => deleteVideo(v.id)}
                                 className="inline-flex items-center justify-center p-2 rounded-md hover:bg-red-50 text-red-600"
+                                type="button"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -2108,7 +2171,11 @@ export default function AdminDashboardClean() {
                               <div className="line-clamp-2">{r.review_text || "-"}</div>
                             </td>
                             <td className="px-4 py-3">
-                              <span className={`text-xs px-2 py-1 rounded-full ${r.is_approved ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"}`}>
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full ${
+                                  r.is_approved ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"
+                                }`}
+                              >
                                 {r.is_approved ? "Yes" : "No"}
                               </span>
                             </td>
@@ -2118,6 +2185,7 @@ export default function AdminDashboardClean() {
                                 <button
                                   onClick={() => handleApproveReview(r.id)}
                                   className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-50"
+                                  type="button"
                                 >
                                   Approve
                                 </button>
@@ -2125,6 +2193,7 @@ export default function AdminDashboardClean() {
                               <button
                                 onClick={() => handleDeleteReview(r.id)}
                                 className="inline-flex items-center justify-center p-2 rounded-md hover:bg-red-50 text-red-600"
+                                type="button"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
