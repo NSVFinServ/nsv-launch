@@ -1,12 +1,6 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import TiptapEditor from "@/components/editor/TiptapEditor";
 import { API_BASE_URL } from "@/lib/api";
-import ReactQuill from "react-quill";
-import "react-quill/dist/quill.snow.css";
-
-import Quill from "quill";
-import QuillBetterTable from "quill-better-table";
-import "quill-better-table/dist/quill-better-table.css";
-
 import {
   BarChart3,
   Bell,
@@ -28,24 +22,6 @@ import {
   X,
 } from "lucide-react";
 import { Edit } from "lucide-react";
-
-/* --------------------------------------------------------------------------------
-   Quill plugin registration (MUST be at module scope, runs once)
---------------------------------------------------------------------------------- */
-
-// Register QuillBetterTable once
-Quill.register({ "modules/better-table": QuillBetterTable }, true);
-
-// Optional: Soft line break (<br>) blot – register once, guard for HMR
-const Embed = Quill.import("blots/embed");
-class BreakBlot extends Embed {
-  static blotName = "break";
-  static tagName = "BR";
-}
-if (!(Quill as any).__break_registered) {
-  Quill.register(BreakBlot, true);
-  (Quill as any).__break_registered = true;
-}
 
 // Blog-thumbnail URL normalizer (STRICTLY for blog images).
 // Supports absolute URLs (e.g., Cloudinary) or relative paths (/uploads/..).
@@ -194,39 +170,6 @@ const slugify = (s: string) =>
  * - DO NOT include ["table"] in toolbar or "table" in formats, or Quill will warn and may crash.
  * - We'll add a custom "Insert Table" button ourselves and call better-table API.
  */
-const quillModules = {
-  toolbar: [
-    [{ header: [1, 2, 3, 4, 5, 6, false] }],
-    ["bold", "italic", "underline", "strike"],
-    [{ list: "ordered" }, { list: "bullet" }],
-    [{ align: [] }],
-    ["link", "image"],
-    ["clean"],
-  ],
-  "better-table": {
-    operationMenu: {
-      items: {
-        unmergeCells: { text: "Unmerge cells" },
-      },
-    },
-  },
-  keyboard: {
-    bindings: (QuillBetterTable as any).keyboardBindings,
-  },
-};
-
-const quillFormats = [
-  "bold",
-  "italic",
-  "underline",
-  "strike",
-  "list",
-  "bullet",
-  "header",
-  "align",
-  "link",
-  "image",
-];
 
 function fmtDate(dateString?: string) {
   if (!dateString) return "-";
@@ -255,7 +198,6 @@ async function safeJson(res: Response) {
 
 export default function AdminDashboardClean() {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  const quillRef = useRef<ReactQuill | null>(null);
 
   // layout
   const [activeTab, setActiveTab] = useState<
@@ -438,48 +380,6 @@ export default function AdminDashboardClean() {
     fetchAllData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Add paste-cleaning matcher once per editor instance (when blog modal opens)
-  useEffect(() => {
-    if (!showBlogModal) return;
-
-    const editor = quillRef.current?.getEditor?.();
-    if (!editor) return;
-
-    if ((editor as any).__clean_paste_added) return;
-    (editor as any).__clean_paste_added = true;
-
-    editor.clipboard.addMatcher(Node.ELEMENT_NODE, (_node: any, delta: any) => {
-      delta.ops = (delta.ops || []).map((op: any) => {
-        if (op.attributes) {
-          delete op.attributes.background;
-          delete op.attributes.color;
-          delete op.attributes.font;
-          delete op.attributes.size;
-        }
-        return op;
-      });
-      return delta;
-    });
-  }, [showBlogModal]);
-
-  // Custom Insert Table (3x3)
-  const insertTable3x3 = () => {
-    const editor = quillRef.current?.getEditor?.();
-    if (!editor) return;
-
-    try {
-      const tableModule = editor.getModule("better-table");
-      if (!tableModule || typeof tableModule.insertTable !== "function") {
-        showActionMessage("Table module not available.", "error");
-        return;
-      }
-      tableModule.insertTable(3, 3);
-    } catch (e) {
-      console.error(e);
-      showActionMessage("Failed to insert table.", "error");
-    }
-  };
 
   // ---------- handlers: blog ----------
   const handleBlogImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1090,15 +990,6 @@ export default function AdminDashboardClean() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">{newBlog.id ? "Edit Blog" : "Create Blog"}</h3>
                 <div className="flex items-center gap-2">
-                  {/* Custom Insert Table button */}
-                  <button
-                    type="button"
-                    onClick={insertTable3x3}
-                    className="px-3 py-2 border rounded-md bg-gray-50 hover:bg-gray-100 text-sm"
-                    title="Insert 3x3 table"
-                  >
-                    Insert Table
-                  </button>
                   <button
                     onClick={() => {
                       setShowBlogModal(false);
@@ -1219,14 +1110,9 @@ export default function AdminDashboardClean() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Blog Content *</label>
                   <div className="bg-white">
-                    <ReactQuill
-                      ref={quillRef}
+                    <TiptapEditor
                       value={newBlog.content}
-                      onChange={(value) => setNewBlog((prev) => ({ ...prev, content: value }))}
-                      modules={quillModules as any}
-                      formats={quillFormats}
-                      theme="snow"
-                      className="rounded-md"
+                      onChange={(html) => setNewBlog((prev) => ({ ...prev, content: html }))}
                     />
                   </div>
                 </div>
