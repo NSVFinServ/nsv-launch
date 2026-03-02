@@ -197,6 +197,7 @@ async function safeJson(res: Response) {
 }
 
 export default function AdminDashboardClean() {
+  if (typeof window === "undefined") return null;
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
   // layout
