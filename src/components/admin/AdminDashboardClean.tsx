@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
-import TiptapEditor from "@/components/editor/TiptapEditor";
+import React, { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { API_BASE_URL } from "@/lib/api";
 import {
   BarChart3,
@@ -199,7 +198,7 @@ async function safeJson(res: Response) {
 export default function AdminDashboardClean() {
   if (typeof window === "undefined") return null;
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
+  const TiptapEditor = lazy(() => import("@/components/editor/TiptapEditor"));
   // layout
   const [activeTab, setActiveTab] = useState<
     | "overview"
@@ -1111,10 +1110,16 @@ export default function AdminDashboardClean() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Blog Content *</label>
                   <div className="bg-white">
-                    <TiptapEditor
-                      value={newBlog.content}
-                      onChange={(html) => setNewBlog((prev) => ({ ...prev, content: html }))}
-                    />
+                    <Suspense fallback={<div className="p-4 text-sm text-gray-500">Loading editor...</div>}>
+                      {showBlogModal && (
+                        <TiptapEditor
+                          value={newBlog.content}
+                          onChange={(html) =>
+                            setNewBlog((prev) => ({ ...prev, content: html }))
+                          }
+                        />
+                      )}
+                    </Suspense>
                   </div>
                 </div>
 
