@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import TextAlign from "@tiptap/extension-text-align";
-
 import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableHeader } from "@tiptap/extension-table-header";
@@ -17,13 +16,15 @@ type Props = {
 };
 
 export default function TiptapEditor({ value, onChange }: Props) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [isClient, setIsClient] = useState(false);
 
-  const initialContent = useMemo(() => value ?? "", []);
+  // Only render editor after client mounts
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const editor = useEditor(
-    mounted
+    isClient
       ? {
           extensions: [
             StarterKit,
@@ -38,22 +39,24 @@ export default function TiptapEditor({ value, onChange }: Props) {
             TableHeader,
             TableCell,
           ],
-          content: initialContent,
+          content: value || "",
           onUpdate: ({ editor }) => {
             onChange(editor.getHTML());
           },
+          immediatelyRender: false, // 🔥 critical for SSR safety
         }
       : null
   );
 
+  // Sync when editing existing blog
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || !isClient) return;
     if (editor.getHTML() !== value) {
       editor.commands.setContent(value || "", false);
     }
-  }, [value, editor]);
+  }, [value, editor, isClient]);
 
-  if (!mounted) return null;
+  if (!isClient) return null;
 
   const btn = "px-2 py-1 text-xs border rounded bg-white hover:bg-gray-50";
 
@@ -68,10 +71,20 @@ export default function TiptapEditor({ value, onChange }: Props) {
         <button className={btn} onClick={() => editor?.chain().focus().setTextAlign("left").run()}>Left</button>
         <button className={btn} onClick={() => editor?.chain().focus().setTextAlign("center").run()}>Center</button>
         <button className={btn} onClick={() => editor?.chain().focus().setTextAlign("right").run()}>Right</button>
-        <button className={btn} onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
+        <button
+          className={btn}
+          onClick={() =>
+            editor
+              ?.chain()
+              .focus()
+              .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+              .run()
+          }
+        >
           Table
         </button>
       </div>
+
       <EditorContent editor={editor} className="p-3 min-h-[250px]" />
     </div>
   );
