@@ -13,7 +13,8 @@ import Footer from './components/Footer';
 import LeadPopup from './components/LeadPopup';
 import BlogsPage from './components/BlogsPage';
 import ReferralBanner from './components/ReferralBanner';
-
+import AOS from 'aos';
+import 'aos/dist/aos.css';
 import { trackPageView } from './lib/analytics';
 
 function App() {
@@ -22,6 +23,12 @@ function App() {
 
 
   useEffect(() => {
+    AOS.init({
+    duration: 800,
+    once: true,
+    offset: 80,
+  });
+      AOS.refresh();
     // Track page view when component mounts
     trackPageView('home');
   }, []);
