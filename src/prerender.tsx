@@ -40,6 +40,48 @@ async function getPrerenderData(url: string) {
   return {};
 }
 
+function helmetToElements(helmet: any) {
+  const elements: Array<{ type: string; props: Record<string, string> }> = [];
+
+  const pushTagMatches = (html: string, type: string) => {
+    const tagRegex = new RegExp(`<${type}\\s+([^>]*?)(?:\\/?>)`, "gi");
+    let match;
+    while ((match = tagRegex.exec(html))) {
+      const attrs = match[1];
+      const props: Record<string, string> = {};
+      const attrRegex = /([:@A-Za-z0-9_-]+)="([^"]*)"/g;
+      let a;
+      while ((a = attrRegex.exec(attrs))) {
+        props[a[1]] = a[2];
+      }
+      elements.push({ type, props });
+    }
+  };
+
+  pushTagMatches(helmet?.meta?.toString?.() || "", "meta");
+  pushTagMatches(helmet?.link?.toString?.() || "", "link");
+
+  const scriptHtml = helmet?.script?.toString?.() || "";
+  const scriptRegex = /<script\s+([^>]*?)>([\s\S]*?)<\/script>/gi;
+  let s;
+  while ((s = scriptRegex.exec(scriptHtml))) {
+    const attrs = s[1];
+    const inner = s[2];
+    const props: Record<string, string> = {};
+    const attrRegex = /([:@A-Za-z0-9_-]+)="([^"]*)"/g;
+    let a;
+    while ((a = attrRegex.exec(attrs))) {
+      props[a[1]] = a[2];
+    }
+    if (inner && inner.trim()) {
+      props.children = inner;
+    }
+    elements.push({ type: "script", props });
+  }
+
+  return elements;
+}
+
 export async function prerender(data: { url: string }) {
   const helmetContext: any = {};
   const prerenderData = await getPrerenderData(data.url);
@@ -53,18 +95,18 @@ export async function prerender(data: { url: string }) {
   );
 
   const helmet = helmetContext.helmet;
-  const head =
-    (helmet?.title?.toString?.() || "") +
-    (helmet?.meta?.toString?.() || "") +
-    (helmet?.link?.toString?.() || "") +
-    (helmet?.script?.toString?.() || "");
+  const rawTitle = helmet?.title?.toString?.() || "";
+  const titleMatch = rawTitle.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const title = titleMatch ? titleMatch[1] : undefined;
 
-  const dataScript = `<script>window.__PRERENDER_DATA__=${JSON.stringify(
-    prerenderData
-  ).replace(/</g, "\\u003c")}</script>`;
+  const elements = helmetToElements(helmet);
 
   return {
     html,
-    head: head + dataScript,
+    data: prerenderData,
+    head: {
+      title,
+      elements: new Set(elements),
+    },
   };
 }
