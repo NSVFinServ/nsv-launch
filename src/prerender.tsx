@@ -7,10 +7,19 @@ import AppRoutes from "./Router";
 const API_BASE_URL =
   process.env.VITE_API_BASE_URL || "https://nsvfinserv-api-h7nt.onrender.com/api";
 
+async function safeJson(res: Response) {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 async function getPrerenderData(url: string) {
   if (url === "/blogs") {
     const res = await fetch(`${API_BASE_URL}/blogs`);
-    const data = await res.json();
+    if (!res.ok) return { blogs: [] };
+    const data = await safeJson(res);
     return { blogs: Array.isArray(data) ? data : [] };
   }
 
@@ -18,7 +27,8 @@ async function getPrerenderData(url: string) {
   if (m) {
     const slug = decodeURIComponent(m[1]);
     const res = await fetch(`${API_BASE_URL}/blogs/${encodeURIComponent(slug)}`);
-    const blog = await res.json();
+    if (!res.ok) return { blog: null };
+    const blog = await safeJson(res);
     return { blog };
   }
 
@@ -38,15 +48,12 @@ export async function prerender(data: { url: string }) {
   );
 
   const helmet = helmetContext.helmet;
-
-  // ✅ inject head as plain HTML string
   const head =
     (helmet?.title?.toString?.() || "") +
     (helmet?.meta?.toString?.() || "") +
     (helmet?.link?.toString?.() || "") +
     (helmet?.script?.toString?.() || "");
 
-  // ✅ inject initial data so hydration doesn't refetch instantly
   const dataScript = `<script>window.__PRERENDER_DATA__=${JSON.stringify(
     prerenderData
   ).replace(/</g, "\\u003c")}</script>`;
