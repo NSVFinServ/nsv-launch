@@ -15,6 +15,7 @@ import BlogDetailsPage from "./pages/BlogDetailsPage";
 import PrivacyPolicy from "./components/privacy-policy/page";
 import AskExpertPage from "./components/askexpert/page";
 import ReferralPage from "./components/referalpage/page";
+import NotFoundPage from "./pages/NotFoundPage";
 
 // ✅ Lazy import admin so Quill never loads during prerender
 const AdminDashboardClean = lazy(() => import("./components/admin/AdminDashboardClean"));
@@ -60,6 +61,8 @@ export default function AppRoutes({ prerenderData }: AppRoutesProps) {
           </ClientOnly>
         }
       />
+
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }
