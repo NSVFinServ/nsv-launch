@@ -6,7 +6,7 @@ import { vitePrerenderPlugin } from "vite-prerender-plugin";
 
 export default defineConfig(async () => {
   const API_BASE_URL =
-    process.env.VITE_API_BASE_URL || "https://nsvfinserv-api-h7nt.onrender.com";
+    process.env.VITE_API_BASE_URL || "https://nsvfinserv-api-h7nt.onrender.com/api";
 
   let blogRoutes: string[] = [];
 
