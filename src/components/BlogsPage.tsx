@@ -8,20 +8,15 @@ interface Blog {
   id: number;
   title: string;
   slug: string;
-
   description?: string | null;
   content?: string | null;
-
   thumbnail?: string | null;
   created_at?: string | null;
-
   author?: string | null;
   category?: string | null;
-
   meta_title?: string | null;
   meta_description?: string | null;
   keywords?: string | null;
-
   is_published?: number | boolean;
 }
 
@@ -31,6 +26,8 @@ type BlogsPageProps = {
   };
 };
 
+const SITE_URL = (import.meta.env.VITE_SITE_URL || "https://www.nsvfinserv.com").replace(/\/+$/, "");
+
 const resolveUrl = (url?: string | null): string => {
   if (!url) return "";
   if (url.startsWith("http")) return url;
@@ -39,8 +36,8 @@ const resolveUrl = (url?: string | null): string => {
 
 const stripMarkdown = (s: string) =>
   s
-    .replace(/!\[.*?\]\(.*?\)/g, "") // images
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // links
+    .replace(/!\[.*?\]\(.*?\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/[`*_>#-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -48,10 +45,7 @@ const stripMarkdown = (s: string) =>
 const BlogsSkeleton = ({ count = 6 }: { count?: number }) => (
   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
     {Array.from({ length: count }).map((_, i) => (
-      <div
-        key={i}
-        className="bg-white rounded-2xl shadow overflow-hidden animate-pulse"
-      >
+      <div key={i} className="bg-white rounded-2xl shadow overflow-hidden animate-pulse">
         <div className="h-48 bg-gray-200" />
         <div className="p-6 space-y-3">
           <div className="h-5 bg-gray-200 rounded w-3/4" />
@@ -65,15 +59,17 @@ const BlogsSkeleton = ({ count = 6 }: { count?: number }) => (
 );
 
 export default function BlogsPage({ prerenderData }: BlogsPageProps) {
-  const initialBlogs = Array.isArray(prerenderData?.blogs) ? prerenderData!.blogs! : [];
-
+  const initialBlogs = Array.isArray(prerenderData?.blogs) ? prerenderData.blogs : [];
   const [blogs, setBlogs] = useState<Blog[]>(initialBlogs);
   const [loading, setLoading] = useState<boolean>(initialBlogs.length === 0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // ✅ If prerender already injected blogs, do not refetch on first paint
-    if (blogs.length > 0) return;
+    if (initialBlogs.length > 0) {
+      setBlogs(initialBlogs);
+      setLoading(false);
+      return;
+    }
 
     const controller = new AbortController();
 
@@ -87,52 +83,43 @@ export default function BlogsPage({ prerenderData }: BlogsPageProps) {
         });
 
         if (!res.ok) {
-          let msg = `Failed to load blogs (${res.status})`;
-          try {
-            const err = await res.json();
-            msg = err?.message || msg;
-          } catch {}
-          throw new Error(msg);
+          throw new Error(`Failed to load blogs (${res.status})`);
         }
 
-        const data = (await res.json()) as Blog[];
+        const data = await res.json();
         setBlogs(Array.isArray(data) ? data : []);
       } catch (e: any) {
-        if (e.name !== "AbortError") setError(e.message || "Something went wrong");
+        if (e.name !== "AbortError") {
+          setError(e.message || "Something went wrong");
+        }
       } finally {
         setLoading(false);
       }
     })();
 
     return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialBlogs]);
 
-  // --- SEO (Landing page) ---
-  const siteBase = "https://www.nsvfinserv.com";
-  const pageUrl = `${siteBase}/blogs`;
+  const pageUrl = `${SITE_URL}/blogs`;
   const title = "Blogs & Financial Insights | NSV Finserv";
   const description =
     "Read expert blogs and financial articles by NSV Finserv on loans, credit, EMIs, and smart money decisions to help you plan your financial future.";
 
-  // --- JSON-LD for Blog list ---
   const blogListJsonLd = useMemo(() => {
     if (!blogs.length) return null;
 
-    const items = blogs.slice(0, 20).map((b, idx) => ({
-      "@type": "ListItem",
-      position: idx + 1,
-      url: `${siteBase}/blogs/${b.slug}`,
-      name: b.title,
-    }));
-
     return {
       "@context": "https://schema.org",
-      "@type": "ItemList",
+      "@type": "CollectionPage",
       name: "NSV Finserv Blog",
-      itemListElement: items,
+      url: pageUrl,
+      hasPart: blogs.slice(0, 20).map((b) => ({
+        "@type": "BlogPosting",
+        headline: b.title,
+        url: `${SITE_URL}/blogs/${b.slug}`,
+      })),
     };
-  }, [blogs]);
+  }, [blogs, pageUrl]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -142,36 +129,29 @@ export default function BlogsPage({ prerenderData }: BlogsPageProps) {
         <meta name="robots" content="index, follow, max-image-preview:large" />
         <link rel="canonical" href={pageUrl} />
 
-        {/* Open Graph */}
         <meta property="og:type" content="website" />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
         <meta property="og:url" content={pageUrl} />
 
-        {/* Twitter */}
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
 
-        {/* JSON-LD */}
-        {blogListJsonLd && (
+        {blogListJsonLd ? (
           <script type="application/ld+json">{JSON.stringify(blogListJsonLd)}</script>
-        )}
+        ) : null}
       </Helmet>
 
-      {/* HERO */}
       <div className="bg-gray-900">
         <div className="max-w-7xl mx-auto px-6 py-16 text-center">
-          <h1 className="text-4xl font-bold text-white mb-3">
-            Blogs & Financial Insights
-          </h1>
+          <h1 className="text-4xl font-bold text-white mb-3">Blogs & Financial Insights</h1>
           <p className="text-gray-300 max-w-2xl mx-auto">
-            Loan guidance, CIBIL tips, eligibility insights & smart finance by NSV Finserv.
+            Loan guidance, CIBIL tips, eligibility insights and smart finance by NSV Finserv.
           </p>
         </div>
       </div>
 
-      {/* Back to Home */}
       <div className="bg-white shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <Link
@@ -184,7 +164,6 @@ export default function BlogsPage({ prerenderData }: BlogsPageProps) {
         </div>
       </div>
 
-      {/* CONTENT */}
       <div className="max-w-7xl mx-auto px-6 py-14">
         {loading && <BlogsSkeleton count={6} />}
 
@@ -201,7 +180,6 @@ export default function BlogsPage({ prerenderData }: BlogsPageProps) {
                 key={blog.id}
                 className="bg-white rounded-2xl shadow hover:shadow-lg transition overflow-hidden"
               >
-                {/* Thumbnail */}
                 <div className="h-48 bg-gray-200">
                   {blog.thumbnail ? (
                     <img
@@ -213,11 +191,10 @@ export default function BlogsPage({ prerenderData }: BlogsPageProps) {
                   ) : null}
                 </div>
 
-                {/* Body */}
                 <div className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
                     {blog.title}
-                  </h3>
+                  </h2>
 
                   <p className="text-sm text-gray-600 mb-4 line-clamp-3">
                     {stripMarkdown(blog.description || "") ||
