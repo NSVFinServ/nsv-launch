@@ -1,6 +1,6 @@
 import React from "react";
 import { renderToString } from "react-dom/server";
-import { StaticRouter } from "react-router";
+import { StaticRouter } from "react-router-dom/server";
 import { HelmetProvider } from "react-helmet-async";
 import AppRoutes from "./Router";
 
@@ -16,20 +16,25 @@ async function safeJson(res: Response) {
 }
 
 async function getPrerenderData(url: string) {
-  if (url === "/blogs") {
-    const res = await fetch(`${API_BASE_URL}/blogs`);
-    if (!res.ok) return { blogs: [] };
-    const data = await safeJson(res);
-    return { blogs: Array.isArray(data) ? data : [] };
-  }
+  try {
+    if (url === "/blogs") {
+      const res = await fetch(`${API_BASE_URL}/blogs`);
+      if (!res.ok) return { blogs: [] };
+      const data = await safeJson(res);
+      return { blogs: Array.isArray(data) ? data : [] };
+    }
 
-  const m = url.match(/^\/blogs\/([^/]+)$/);
-  if (m) {
-    const slug = decodeURIComponent(m[1]);
-    const res = await fetch(`${API_BASE_URL}/blogs/${encodeURIComponent(slug)}`);
-    if (!res.ok) return { blog: null };
-    const blog = await safeJson(res);
-    return { blog };
+    const match = url.match(/^\/blogs\/([^/]+)$/);
+    if (match) {
+      const slug = decodeURIComponent(match[1]);
+      const res = await fetch(`${API_BASE_URL}/blogs/${encodeURIComponent(slug)}`);
+      if (!res.ok) return { blog: null };
+      const blog = await safeJson(res);
+      return { blog: blog ?? null };
+    }
+  } catch {
+    if (url === "/blogs") return { blogs: [] };
+    if (url.startsWith("/blogs/")) return { blog: null };
   }
 
   return {};
