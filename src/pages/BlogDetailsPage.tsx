@@ -19,6 +19,7 @@ interface Blog {
   keywords?: string | null;
 
   created_at?: string | null;
+  updated_at?: string | null;
 }
 
 type BlogDetailsProps = {
@@ -27,12 +28,21 @@ type BlogDetailsProps = {
   };
 };
 
-const SITE_URL = (import.meta.env.VITE_SITE_URL || "").replace(/\/+$/, "");
+const SITE_URL = (import.meta.env.VITE_SITE_URL || "https://www.nsvfinserv.com").replace(/\/+$/, "");
 const resolveAssetUrl = (url?: string | null) => {
   if (!url) return "";
   if (url.startsWith("http")) return url;
   return `${API_ORIGIN}${url}`;
 };
+
+const stripHtml = (value: string) =>
+  value
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
   const { slug } = useParams();
@@ -44,8 +54,6 @@ export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
 
   useEffect(() => {
     if (!slug) return;
-
-    // ✅ If prerender already injected the same blog, do not refetch immediately
     if (blog?.slug === slug) return;
 
     (async () => {
@@ -67,8 +75,6 @@ export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
   const cleanHtml = useMemo(() => {
     const raw = blog?.content ?? "";
     if (!raw) return "";
-
-    // During prerender/build: do not touch DOM, return raw HTML as-is
     if (typeof window === "undefined") return raw;
 
     let decoded = raw;
@@ -88,39 +94,99 @@ export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
   }, [blog?.content]);
 
   if (loading) return <div className="max-w-4xl mx-auto p-6">Loading…</div>;
-  if (!blog) return <div className="max-w-4xl mx-auto p-6">Blog not found.</div>;
 
-  const metaTitle = blog.meta_title?.trim() || blog.title;
-  const metaDesc = blog.meta_description?.trim() || blog.description;
+  if (!blog) {
+    const missingTitle = "Blog Not Found | NSV Finserv";
+    const missingDescription =
+      "This article could not be found on NSV Finserv. Please check the URL or browse our latest financial guides.";
+    const canonicalMissing = SITE_URL && slug ? `${SITE_URL}/blogs/${encodeURIComponent(slug)}` : "";
+
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <Helmet prioritizeSeoTags>
+          <title>{missingTitle}</title>
+          <meta name="description" content={missingDescription} />
+          <meta name="robots" content="noindex, follow" />
+          {canonicalMissing ? <link rel="canonical" href={canonicalMissing} /> : null}
+        </Helmet>
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">Blog not found</h1>
+        <p className="text-gray-700">
+          The requested article is unavailable. Please check the URL or visit the blog listing page.
+        </p>
+      </div>
+    );
+  }
+
+  const contentText = stripHtml(cleanHtml || blog.content || "");
+  const metaTitle = (blog.meta_title?.trim() || blog.title || "NSV Finserv Blog").trim();
+  const metaDesc = (
+    blog.meta_description?.trim() ||
+    blog.description?.trim() ||
+    contentText.slice(0, 155)
+  ).trim();
   const metaKeywords: string = blog.keywords?.trim() || "";
 
   const canonical = SITE_URL ? `${SITE_URL}/blogs/${blog.slug}` : "";
   const ogImage = resolveAssetUrl(blog.thumbnail);
+  const publishedTime = blog.created_at || undefined;
+  const modifiedTime = blog.updated_at || blog.created_at || undefined;
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: blog.title,
+    description: metaDesc,
+    mainEntityOfPage: canonical || undefined,
+    url: canonical || undefined,
+    image: ogImage ? [ogImage] : undefined,
+    author: blog.author
+      ? {
+          "@type": "Person",
+          name: blog.author,
+        }
+      : {
+          "@type": "Organization",
+          name: "NSV Finserv",
+        },
+    publisher: {
+      "@type": "Organization",
+      name: "NSV Finserv",
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/assets/title2-Dg6HJnmQ.jpeg`,
+      },
+    },
+    datePublished: publishedTime,
+    dateModified: modifiedTime,
+    articleSection: blog.category || undefined,
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-6">
       <Helmet prioritizeSeoTags>
         <title key="title">{metaTitle}</title>
-
         <meta key="meta-description" name="description" content={metaDesc} />
-        {metaKeywords ? (
-          <meta key="meta-keywords" name="keywords" content={metaKeywords} />
-        ) : null}
-
+        {metaKeywords ? <meta key="meta-keywords" name="keywords" content={metaKeywords} /> : null}
+        <meta key="robots" name="robots" content="index, follow, max-image-preview:large" />
         {canonical ? <link key="canonical" rel="canonical" href={canonical} /> : null}
 
-        {/* Open Graph */}
         <meta key="og-title" property="og:title" content={metaTitle} />
         <meta key="og-description" property="og:description" content={metaDesc} />
         {canonical ? <meta key="og-url" property="og:url" content={canonical} /> : null}
         <meta key="og-type" property="og:type" content="article" />
+        <meta key="og-site-name" property="og:site_name" content="NSV Finserv" />
+        {publishedTime ? <meta key="article-published" property="article:published_time" content={publishedTime} /> : null}
+        {modifiedTime ? <meta key="article-modified" property="article:modified_time" content={modifiedTime} /> : null}
+        {blog.author ? <meta key="article-author" property="article:author" content={blog.author} /> : null}
+        {blog.category ? <meta key="article-section" property="article:section" content={blog.category} /> : null}
         {ogImage ? <meta key="og-image" property="og:image" content={ogImage} /> : null}
 
-        {/* Twitter */}
         <meta key="tw-card" name="twitter:card" content="summary_large_image" />
         <meta key="tw-title" name="twitter:title" content={metaTitle} />
         <meta key="tw-description" name="twitter:description" content={metaDesc} />
         {ogImage ? <meta key="tw-image" name="twitter:image" content={ogImage} /> : null}
+
+        <script key="jsonld" type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>
 
       {blog.thumbnail ? (
