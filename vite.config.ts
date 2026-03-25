@@ -1,20 +1,23 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
-import { vitePrerenderPlugin } from "vite-prerender-plugin";
 import path from "path";
+import { vitePrerenderPlugin } from "vite-prerender-plugin";
 
 export default defineConfig(async () => {
   const API_BASE_URL =
-    process.env.VITE_API_BASE_URL || "https://nsvfinserv-api-h7nt.onrender.com";
+    process.env.VITE_API_BASE_URL || "https://nsvfinserv-api-h7nt.onrender.com/api";
 
   let blogRoutes: string[] = [];
+
   try {
     const res = await fetch(`${API_BASE_URL}/blogs`);
     const data = await res.json();
+
     const published = Array.isArray(data)
-      ? data.filter((b: any) => b?.is_published)
+      ? data.filter((b: any) => b && (b.is_published === 1 || b.is_published === true))
       : [];
+
     blogRoutes = published
       .map((b: any) => b?.slug)
       .filter(Boolean)
@@ -27,19 +30,16 @@ export default defineConfig(async () => {
     plugins: [
       react(),
       vitePrerenderPlugin({
-  renderTarget: "#root",
-  prerenderScript: path.resolve(__dirname, "src/prerender.tsx"),
-  additionalPrerenderRoutes: ["/", "/blogs", ...blogRoutes],
-  // ✅ makes sure head gets injected
-  addCopyScript: false,
-}),
+        renderTarget: "#root",
+        prerenderScript: path.resolve(__dirname, "src/prerender.tsx"),
+        additionalPrerenderRoutes: ["/", "/blogs", ...blogRoutes],
+        addCopyScript: false,
+      }),
     ],
     resolve: {
       alias: { "@": resolve("./src") },
       dedupe: ["react", "react-dom"],
     },
-
-    // ✅ makes Helmet SSR more reliable in some Vite/Vercel combos
     ssr: {
       noExternal: ["react-helmet-async"],
     },
