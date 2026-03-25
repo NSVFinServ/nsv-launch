@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { Helmet } from "react-helmet-async";
 import DOMPurify from "dompurify";
 import { API_BASE_URL, API_ORIGIN } from "@/lib/api";
@@ -44,7 +44,7 @@ const stripHtml = (value: string) =>
     .trim();
 
 export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
-  const { slug } = useParams();
+  const { slug = "" } = useParams();
   const initialBlog = prerenderData?.blog ?? null;
 
   const [blog, setBlog] = useState<Blog | null>(initialBlog);
@@ -87,8 +87,10 @@ export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
           setBlog(null);
         }
       } finally {
-        setLoading(false);
-        setHasFetched(true);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          setHasFetched(true);
+        }
       }
     })();
 
