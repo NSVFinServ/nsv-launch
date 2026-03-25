@@ -136,9 +136,11 @@ export default function BlogsPage({ prerenderData }: BlogsPageProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Helmet>
+      <Helmet prioritizeSeoTags>
         <title>{title}</title>
         <meta name="description" content={description} />
+        <meta name="robots" content="index, follow, max-image-preview:large" />
+        <link rel="canonical" href={pageUrl} />
 
         {/* Open Graph */}
         <meta property="og:type" content="website" />
