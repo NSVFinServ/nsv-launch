@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import DOMPurify from "dompurify";
 import { API_BASE_URL, API_ORIGIN } from "@/lib/api";
@@ -13,22 +13,21 @@ interface Blog {
   author?: string | null;
   category?: string | null;
   thumbnail?: string | null;
-
   meta_title?: string | null;
   meta_description?: string | null;
   keywords?: string | null;
-
   created_at?: string | null;
   updated_at?: string | null;
 }
 
 type BlogDetailsProps = {
   prerenderData?: {
-    blog?: Blog;
+    blog?: Blog | null;
   };
 };
 
 const SITE_URL = (import.meta.env.VITE_SITE_URL || "https://www.nsvfinserv.com").replace(/\/+$/, "");
+
 const resolveAssetUrl = (url?: string | null) => {
   if (!url) return "";
   if (url.startsWith("http")) return url;
@@ -46,31 +45,55 @@ const stripHtml = (value: string) =>
 
 export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
   const { slug } = useParams();
-
   const initialBlog = prerenderData?.blog ?? null;
 
   const [blog, setBlog] = useState<Blog | null>(initialBlog);
   const [loading, setLoading] = useState<boolean>(!initialBlog);
+  const [hasFetched, setHasFetched] = useState<boolean>(!!initialBlog);
 
   useEffect(() => {
-    if (!slug) return;
-    if (blog?.slug === slug) return;
+    if (!slug) {
+      setBlog(null);
+      setLoading(false);
+      setHasFetched(true);
+      return;
+    }
+
+    if (initialBlog?.slug === slug) {
+      setBlog(initialBlog);
+      setLoading(false);
+      setHasFetched(true);
+      return;
+    }
+
+    const controller = new AbortController();
 
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${API_BASE_URL}/blogs/${encodeURIComponent(slug)}`);
-        if (!res.ok) throw new Error("Not found");
+        const res = await fetch(`${API_BASE_URL}/blogs/${encodeURIComponent(slug)}`, {
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          setBlog(null);
+          return;
+        }
+
         const data = await res.json();
-        setBlog(data);
-      } catch {
-        setBlog(null);
+        setBlog(data ?? null);
+      } catch (error: any) {
+        if (error?.name !== "AbortError") {
+          setBlog(null);
+        }
       } finally {
         setLoading(false);
+        setHasFetched(true);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+
+    return () => controller.abort();
+  }, [slug, initialBlog]);
 
   const cleanHtml = useMemo(() => {
     const raw = blog?.content ?? "";
@@ -93,13 +116,15 @@ export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
     });
   }, [blog?.content]);
 
-  if (loading) return <div className="max-w-4xl mx-auto p-6">Loading…</div>;
+  if (loading && !hasFetched) {
+    return <div className="max-w-4xl mx-auto p-6">Loading…</div>;
+  }
 
   if (!blog) {
-    const missingTitle = "Blog Not Found | NSV Finserv";
+    const missingTitle = "Page Not Found | NSV Finserv";
     const missingDescription =
       "This article could not be found on NSV Finserv. Please check the URL or browse our latest financial guides.";
-    const canonicalMissing = SITE_URL && slug ? `${SITE_URL}/blogs/${encodeURIComponent(slug)}` : "";
+    const canonicalMissing = slug ? `${SITE_URL}/blogs/${encodeURIComponent(slug)}` : `${SITE_URL}/blogs`;
 
     return (
       <div className="max-w-4xl mx-auto p-6">
@@ -107,26 +132,35 @@ export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
           <title>{missingTitle}</title>
           <meta name="description" content={missingDescription} />
           <meta name="robots" content="noindex, follow" />
-          {canonicalMissing ? <link rel="canonical" href={canonicalMissing} /> : null}
+          <link rel="canonical" href={canonicalMissing} />
         </Helmet>
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Blog not found</h1>
-        <p className="text-gray-700">
-          The requested article is unavailable. Please check the URL or visit the blog listing page.
-        </p>
+
+        <div className="bg-white rounded-2xl shadow p-8 text-center">
+          <p className="text-sm uppercase tracking-wide text-gray-500 mb-2">404</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-3">Blog not found</h1>
+          <p className="text-gray-600 mb-6">
+            The requested article is unavailable. Please check the URL or browse our blog page.
+          </p>
+          <Link
+            to="/blogs"
+            className="inline-flex items-center rounded-lg bg-blue-600 px-5 py-3 text-white font-medium hover:bg-blue-700 transition"
+          >
+            Browse blogs
+          </Link>
+        </div>
       </div>
     );
   }
 
   const contentText = stripHtml(cleanHtml || blog.content || "");
-  const metaTitle = (blog.meta_title?.trim() || blog.title || "NSV Finserv Blog").trim();
+  const metaTitle = (blog.meta_title?.trim() || `${blog.title} | NSV Finserv`).trim();
   const metaDesc = (
     blog.meta_description?.trim() ||
     blog.description?.trim() ||
     contentText.slice(0, 155)
   ).trim();
-  const metaKeywords: string = blog.keywords?.trim() || "";
-
-  const canonical = SITE_URL ? `${SITE_URL}/blogs/${blog.slug}` : "";
+  const metaKeywords = blog.keywords?.trim() || "";
+  const canonical = `${SITE_URL}/blogs/${blog.slug}`;
   const ogImage = resolveAssetUrl(blog.thumbnail);
   const publishedTime = blog.created_at || undefined;
   const modifiedTime = blog.updated_at || blog.created_at || undefined;
@@ -136,8 +170,8 @@ export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
     "@type": "BlogPosting",
     headline: blog.title,
     description: metaDesc,
-    mainEntityOfPage: canonical || undefined,
-    url: canonical || undefined,
+    mainEntityOfPage: canonical,
+    url: canonical,
     image: ogImage ? [ogImage] : undefined,
     author: blog.author
       ? {
@@ -153,7 +187,7 @@ export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
       name: "NSV Finserv",
       logo: {
         "@type": "ImageObject",
-        url: `${SITE_URL}/assets/title2-Dg6HJnmQ.jpeg`,
+        url: `${SITE_URL}/favicon.ico`,
       },
     },
     datePublished: publishedTime,
@@ -164,29 +198,29 @@ export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <Helmet prioritizeSeoTags>
-        <title key="title">{metaTitle}</title>
-        <meta key="meta-description" name="description" content={metaDesc} />
-        {metaKeywords ? <meta key="meta-keywords" name="keywords" content={metaKeywords} /> : null}
-        <meta key="robots" name="robots" content="index, follow, max-image-preview:large" />
-        {canonical ? <link key="canonical" rel="canonical" href={canonical} /> : null}
+        <title>{metaTitle}</title>
+        <meta name="description" content={metaDesc} />
+        {metaKeywords ? <meta name="keywords" content={metaKeywords} /> : null}
+        <meta name="robots" content="index, follow, max-image-preview:large" />
+        <link rel="canonical" href={canonical} />
 
-        <meta key="og-title" property="og:title" content={metaTitle} />
-        <meta key="og-description" property="og:description" content={metaDesc} />
-        {canonical ? <meta key="og-url" property="og:url" content={canonical} /> : null}
-        <meta key="og-type" property="og:type" content="article" />
-        <meta key="og-site-name" property="og:site_name" content="NSV Finserv" />
-        {publishedTime ? <meta key="article-published" property="article:published_time" content={publishedTime} /> : null}
-        {modifiedTime ? <meta key="article-modified" property="article:modified_time" content={modifiedTime} /> : null}
-        {blog.author ? <meta key="article-author" property="article:author" content={blog.author} /> : null}
-        {blog.category ? <meta key="article-section" property="article:section" content={blog.category} /> : null}
-        {ogImage ? <meta key="og-image" property="og:image" content={ogImage} /> : null}
+        <meta property="og:title" content={metaTitle} />
+        <meta property="og:description" content={metaDesc} />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:type" content="article" />
+        <meta property="og:site_name" content="NSV Finserv" />
+        {publishedTime ? <meta property="article:published_time" content={publishedTime} /> : null}
+        {modifiedTime ? <meta property="article:modified_time" content={modifiedTime} /> : null}
+        {blog.author ? <meta property="article:author" content={blog.author} /> : null}
+        {blog.category ? <meta property="article:section" content={blog.category} /> : null}
+        {ogImage ? <meta property="og:image" content={ogImage} /> : null}
 
-        <meta key="tw-card" name="twitter:card" content="summary_large_image" />
-        <meta key="tw-title" name="twitter:title" content={metaTitle} />
-        <meta key="tw-description" name="twitter:description" content={metaDesc} />
-        {ogImage ? <meta key="tw-image" name="twitter:image" content={ogImage} /> : null}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={metaTitle} />
+        <meta name="twitter:description" content={metaDesc} />
+        {ogImage ? <meta name="twitter:image" content={ogImage} /> : null}
 
-        <script key="jsonld" type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>
 
       {blog.thumbnail ? (
@@ -205,7 +239,10 @@ export default function BlogDetailsPage({ prerenderData }: BlogDetailsProps) {
       <h1 className="text-3xl font-bold text-gray-900 mb-4">{blog.title}</h1>
       {blog.description ? <p className="text-gray-700 mb-6">{blog.description}</p> : null}
 
-      <article className="prose max-w-none whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: cleanHtml }} />
+      <article
+        className="prose max-w-none whitespace-pre-wrap"
+        dangerouslySetInnerHTML={{ __html: cleanHtml }}
+      />
     </div>
   );
 }
