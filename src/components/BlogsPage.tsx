@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { Helmet } from "react-helmet-async";
 import { API_BASE_URL, API_ORIGIN } from "@/lib/api";
 import { ArrowLeft } from "lucide-react";
@@ -59,15 +59,22 @@ const BlogsSkeleton = ({ count = 6 }: { count?: number }) => (
 );
 
 export default function BlogsPage({ prerenderData }: BlogsPageProps) {
-  const initialBlogs = Array.isArray(prerenderData?.blogs) ? prerenderData.blogs : [];
+  const initialBlogs = useMemo(
+    () => (Array.isArray(prerenderData?.blogs) ? prerenderData.blogs : []),
+    [prerenderData?.blogs]
+  );
+
   const [blogs, setBlogs] = useState<Blog[]>(initialBlogs);
   const [loading, setLoading] = useState<boolean>(initialBlogs.length === 0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setBlogs(initialBlogs);
+    setLoading(initialBlogs.length === 0);
+  }, [initialBlogs]);
+
+  useEffect(() => {
     if (initialBlogs.length > 0) {
-      setBlogs(initialBlogs);
-      setLoading(false);
       return;
     }
 
@@ -89,16 +96,18 @@ export default function BlogsPage({ prerenderData }: BlogsPageProps) {
         const data = await res.json();
         setBlogs(Array.isArray(data) ? data : []);
       } catch (e: any) {
-        if (e.name !== "AbortError") {
-          setError(e.message || "Something went wrong");
+        if (e?.name !== "AbortError") {
+          setError(e?.message || "Something went wrong");
         }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     })();
 
     return () => controller.abort();
-  }, [initialBlogs]);
+  }, [initialBlogs.length]);
 
   const pageUrl = `${SITE_URL}/blogs`;
   const title = "Blogs & Financial Insights | NSV Finserv";
