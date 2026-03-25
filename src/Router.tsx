@@ -17,29 +17,29 @@ import AskExpertPage from "./components/askexpert/page";
 import ReferralPage from "./components/referalpage/page";
 import NotFoundPage from "./pages/NotFoundPage";
 
-// ✅ Lazy import admin so Quill never loads during prerender
 const AdminDashboardClean = lazy(() => import("./components/admin/AdminDashboardClean"));
 
 function ClientOnly({ children }: { children: React.ReactNode }) {
-  if (typeof window === "undefined") return null; // ✅ prevents SSR/prerender crash
+  if (typeof window === "undefined") return null;
   return <>{children}</>;
 }
 
 type AppRoutesProps = {
-  prerenderData?: any; // keep as any for now; you can strongly type later
+  prerenderData?: {
+    blogs?: any[];
+    blog?: any | null;
+  };
 };
 
 export default function AppRoutes({ prerenderData }: AppRoutesProps) {
   return (
     <Routes>
-      {/* Public SEO routes */}
       <Route path="/" element={<App />} />
       <Route path="/blogs" element={<BlogsPage prerenderData={prerenderData} />} />
       <Route path="/blogs/:slug" element={<BlogDetailsPage prerenderData={prerenderData} />} />
       <Route path="/terms-conditions" element={<TermsConditions />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
-      {/* Other public routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -50,7 +50,6 @@ export default function AppRoutes({ prerenderData }: AppRoutesProps) {
       <Route path="/test-email" element={<TestEmailPage />} />
       <Route path="/email-display" element={<EmailDisplayPage />} />
 
-      {/* ✅ Admin route: client-only + lazy */}
       <Route
         path="/admin"
         element={
