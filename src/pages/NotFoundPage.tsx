@@ -1,6 +1,6 @@
 import React from "react";
 import { Helmet } from "react-helmet-async";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 
 const SITE_URL = (import.meta.env.VITE_SITE_URL || "https://www.nsvfinserv.com").replace(/\/+$/, "");
 
