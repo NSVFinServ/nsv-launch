@@ -1,11 +1,12 @@
 import React from "react";
 import { Helmet } from "react-helmet-async";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 const SITE_URL = (import.meta.env.VITE_SITE_URL || "https://www.nsvfinserv.com").replace(/\/+$/, "");
 
 export default function NotFoundPage() {
-  const canonical = SITE_URL ? `${SITE_URL}/404` : "";
+  const location = useLocation();
+  const canonical = `${SITE_URL}${location.pathname}`;
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
@@ -16,7 +17,7 @@ export default function NotFoundPage() {
           content="The page you are looking for could not be found on NSV Finserv."
         />
         <meta name="robots" content="noindex, follow" />
-        {canonical ? <link rel="canonical" href={canonical} /> : null}
+        <link rel="canonical" href={canonical} />
       </Helmet>
 
       <div className="max-w-xl w-full bg-white rounded-2xl shadow p-8 text-center">
