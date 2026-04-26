@@ -16,8 +16,11 @@ import PrivacyPolicy from "./components/privacy-policy/page";
 import AskExpertPage from "./components/askexpert/page";
 import ReferralPage from "./components/referalpage/page";
 import NotFoundPage from "./pages/NotFoundPage";
+import ProtectedCRMRoute from "./components/crm/ProtectedCRMRoute";
 
 const AdminDashboardClean = lazy(() => import("./components/admin/AdminDashboardClean"));
+const CRMDashboard = lazy(() => import("./components/crm/CRMDashboard"));
+const InternManagement = lazy(() => import("./components/crm/InternManagement"));
 
 function ClientOnly({ children }: { children: React.ReactNode }) {
   if (typeof window === "undefined") return null;
@@ -50,6 +53,29 @@ export default function AppRoutes({ prerenderData }: AppRoutesProps) {
       <Route path="/test-email" element={<TestEmailPage />} />
       <Route path="/email-display" element={<EmailDisplayPage />} />
 
+      {/* CRM – role-protected */}
+      <Route
+        path="/crm"
+        element={
+          <ProtectedCRMRoute>
+            <Suspense fallback={null}>
+              <CRMDashboard />
+            </Suspense>
+          </ProtectedCRMRoute>
+        }
+      />
+      <Route
+        path="/crm/interns"
+        element={
+          <ProtectedCRMRoute requireAdmin>
+            <Suspense fallback={null}>
+              <InternManagement />
+            </Suspense>
+          </ProtectedCRMRoute>
+        }
+      />
+
+      {/* Admin – untouched */}
       <Route
         path="/admin"
         element={
@@ -65,3 +91,4 @@ export default function AppRoutes({ prerenderData }: AppRoutesProps) {
     </Routes>
   );
 }
+

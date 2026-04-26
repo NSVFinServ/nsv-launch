@@ -22,4 +22,40 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files — never commit real secrets
 .env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# ── SQL files (run manually on the server, never commit) ──────────────
+# Base schema kept as reference; all migration/patch files excluded
+database-migration.sql
+database-migration-updates.sql
+database-updates.sql
+backend/migrations/
+setup-database.cjs
+backend/setup-database.cjs
+
+# ── Internal / deployment documentation ──────────────────────────────
+# README.md and DEPLOYMENT.md are intentionally kept
+DEPLOYMENT_CRM.md
+ADMIN_DASHBOARD_IMPROVEMENTS.md
+crm_spec_antigravity.md
+
+# ── Debug, one-off test & fix scripts ────────────────────────────────
+auth-test.js
+browser-debug.html
+debug-referral-detailed.js
+debug-referral-update.js
+fix-referral-update.js
+frontend-debug.js
+test-admin-functionality.js
+test-referral.js
+test-referral-update.js
+
+# ── Temp build artefacts ──────────────────────────────────────────────
+build_output.txt

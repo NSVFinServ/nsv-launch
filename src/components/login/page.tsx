@@ -5,20 +5,21 @@ import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card"
 import logo from '../../components/logo.png'
-import { API_BASE_URL, withApi } from '@/lib/api.ts';
+import { API_BASE_URL } from '@/lib/api.ts';
 import { sendLoginNotification } from '@/lib/notificationService';
+import { useAuth } from '@/lib/authContext';
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // Basic validation
     if (!email || !password) {
       alert('Please fill in all fields')
       setIsLoading(false)
@@ -28,42 +29,34 @@ export default function LoginPage() {
     try {
       const response = await fetch(`${API_BASE_URL}/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
 
       const data = await response.json()
 
       if (response.ok) {
-  // Store token in localStorage
-  localStorage.setItem('token', data.token)
-  localStorage.setItem('user', JSON.stringify(data.user))
-  
-  // ✅ SEND TELEGRAM NOTIFICATION (non-blocking)
-  sendLoginNotification({
-    name: data.user.name,
-    email: data.user.email || email,
-    phone: data.user.phone || data.user.mobile,
-    id: data.user.id || data.user._id,
-  }).catch((err) => {
-    // Silent fail - don't block login if notification fails
-    console.error('Notification error:', err);
-  });
-  
-  // Show success message
-  alert(`Welcome back, ${data.user.name}!`)
-        
-        // Check if admin login
-        if (email === 'admin@nsvfinserv.com' && password === 'password') {
-          window.location.href = '/admin'
+        // Persist via auth context
+        login(data.token, data.user);
+
+        // Non-blocking login notification
+        sendLoginNotification({
+          name: data.user.name,
+          email: data.user.email || email,
+          phone: data.user.phone || data.user.mobile,
+          id: data.user.id || data.user._id,
+        }).catch((err) => {
+          console.error('Notification error:', err);
+        });
+
+        // Role-based redirect
+        const role = data.user?.role;
+        if (role === 'admin' || role === 'intern') {
+          window.location.href = '/crm';
         } else {
-          // Redirect to main page for regular users
-          window.location.href = '/'
+          window.location.href = '/';
         }
       } else {
-        // Better error handling
         if (response.status === 401) {
           alert('Invalid email or password. Please check your credentials.')
         } else if (response.status === 500) {
@@ -72,7 +65,7 @@ export default function LoginPage() {
           alert(data.message || 'Login failed. Please try again.')
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error)
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         alert('Cannot connect to server. Please make sure the backend is running.')

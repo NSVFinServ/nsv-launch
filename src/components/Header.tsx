@@ -1,27 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Menu, X, Phone, Mail, User, LogOut } from 'lucide-react';
 import logo from './logo.png';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../lib/authContext';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [user, setUser] = useState(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const isAdmin = user && (user.email === 'admin@nsvfinserv.com');
-
-  useEffect(() => {
-    // Check if user is logged in
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
-  }, []);
+  const { user, isAdmin, isIntern, logout } = useAuth();
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    setUser(null);
-    window.location.href = '/';
+    logout();
   };
 
   const navigation = [

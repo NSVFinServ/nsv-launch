@@ -164,9 +164,9 @@ const transporter = require('nodemailer').createTransport({
 // OTP storage (in production, use Redis or database)
 const otpStorage = new Map();
 
-// Helper function to generate JWT token
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '24h' });
+// Helper function to generate JWT token (includes role for CRM)
+const generateToken = (userId, role = 'intern', internCode = null) => {
+  return jwt.sign({ userId, role, internCode }, JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '24h' });
 };
 
 // Helper function to send email
@@ -697,42 +697,40 @@ app.delete('/api/admin/users/:id', authenticateToken, isAdmin, async (req, res) 
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    
-    // Special admin login check
-    if (email === 'admin@nsvfinserv.com' && password === 'password') {
-      const token = generateToken('admin');
-      return res.json({
-        message: 'Admin login successful',
-        token,
-        user: { id: 'admin', name: 'Admin', email: 'admin@nsvfinserv.com', phone: '0000000000' }
-      });
-    }
-    
-    // Find user
+
+    // Find user by email
     const [users] = await promisePool.query(
       'SELECT * FROM users WHERE email = ?',
       [email]
     );
-    
+
     if (users.length === 0) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-    
+
     const user = users[0];
-    
+
     // Check password
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
-    
     if (!isValidPassword) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-    
-    const token = generateToken(user.id);
-    
+
+    const role = user.role || 'intern';
+    const internCode = user.intern_code || null;
+    const token = generateToken(user.id, role, internCode);
+
     res.json({
       message: 'Login successful',
       token,
-      user: { id: user.id, name: user.name, email: user.email, phone: user.phone }
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role,
+        intern_code: internCode,
+      }
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -2045,6 +2043,505 @@ app.post("/api/ask-expert", (req, res) => {
     res.json({ ok: true, message: "Question submitted successfully!", id: result.insertId });
   });
 });
+// ==========================================================================
+//  CRM MODULE — Student Management
+// ==========================================================================
+const { parse: csvParse } = require('csv-parse/sync');
+const pdfParse = require('pdf-parse');
+const PDFDocument = require('pdfkit');
+
+// ── CRM Multer (CSV + PDF, memory storage) ────────────────────────────────
+const uploadCRM = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  fileFilter: (req, file, cb) => {
+    const allowed = ['text/csv', 'application/pdf', 'application/octet-stream', 'text/plain'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(file.mimetype) || ext === '.csv' || ext === '.pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .csv and .pdf files are allowed'));
+    }
+  },
+});
+
+// ── CRM Middleware ────────────────────────────────────────────────────────
+const authenticateCRM = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token provided' });
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err) return res.status(403).json({ error: 'Invalid or expired token' });
+    // Support both new (role in token) and legacy (userId==='admin') tokens
+    req.user = {
+      userId: decoded.userId,
+      role: decoded.role || (decoded.userId === 'admin' ? 'admin' : 'intern'),
+      internCode: decoded.internCode || null,
+    };
+    next();
+  });
+};
+
+const requireAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') return next();
+  return res.status(403).json({ error: 'Admin access required' });
+};
+
+const requireCRM = (req, res, next) => {
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'intern')) return next();
+  return res.status(403).json({ error: 'CRM access required' });
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+const VALID_STATUSES = ['contacted', 'interested', 'no_updates', 'conversion'];
+
+function sanitizeStudentRow(row) {
+  return {
+    name:       (row.name || row.Name || '').toString().trim(),
+    email:      (row.email || row.Email || '').toString().trim().toLowerCase() || null,
+    phone:      (row.phone || row.Phone || '').toString().trim() || null,
+    college:    (row.college || row.College || '').toString().trim() || null,
+    course:     (row.course || row.Course || '').toString().trim() || null,
+    batch_year: (row.batch_year || row['Batch Year'] || row['Batch/Year'] || '').toString().trim() || null,
+    status:     VALID_STATUSES.includes((row.status || row.Status || '').toLowerCase())
+                  ? (row.status || row.Status).toLowerCase()
+                  : 'no_updates',
+    notes:      (row.notes || row.Notes || '').toString().trim() || null,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// STUDENTS
+// ─────────────────────────────────────────────────────────────────────────
+
+// GET /api/crm/students  — list all (with optional ?status= filter)
+app.get('/api/crm/students', authenticateCRM, requireCRM, async (req, res) => {
+  try {
+    const { status, intern_id, search } = req.query;
+    let sql = `
+      SELECT s.*, u.name AS assigned_intern_name
+      FROM students s
+      LEFT JOIN users u ON s.assigned_intern_id = u.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (status && VALID_STATUSES.includes(status)) {
+      sql += ' AND s.status = ?';
+      params.push(status);
+    }
+    if (intern_id) {
+      sql += ' AND s.assigned_intern_id = ?';
+      params.push(intern_id);
+    }
+    if (search) {
+      const like = `%${search}%`;
+      sql += ' AND (s.name LIKE ? OR s.email LIKE ? OR s.college LIKE ? OR s.course LIKE ?)';
+      params.push(like, like, like, like);
+    }
+    sql += ' ORDER BY s.updated_at DESC';
+
+    const [rows] = await promisePool.query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('CRM GET students error:', err);
+    res.status(500).json({ error: 'Failed to fetch students' });
+  }
+});
+
+// POST /api/crm/students — add single student (admin)
+app.post('/api/crm/students', authenticateCRM, requireAdmin, async (req, res) => {
+  try {
+    const { name, email, phone, college, course, batch_year, status, notes } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
+    const st = VALID_STATUSES.includes(status) ? status : 'no_updates';
+    const [result] = await promisePool.query(
+      'INSERT INTO students (name, email, phone, college, course, batch_year, status, notes) VALUES (?,?,?,?,?,?,?,?)',
+      [name.trim(), email || null, phone || null, college || null, course || null, batch_year || null, st, notes || null]
+    );
+    const [newRow] = await promisePool.query('SELECT * FROM students WHERE id = ?', [result.insertId]);
+    res.status(201).json({ message: 'Student added', student: newRow[0] });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Email already exists' });
+    console.error('CRM POST student error:', err);
+    res.status(500).json({ error: 'Failed to add student' });
+  }
+});
+
+// PUT /api/crm/students/:id — full edit (admin)
+app.put('/api/crm/students/:id', authenticateCRM, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, phone, college, course, batch_year, status, notes, assigned_intern_id, intern_code } = req.body;
+    const fields = [], params = [];
+    if (name)         { fields.push('name = ?');             params.push(name.trim()); }
+    if (email !== undefined) { fields.push('email = ?');    params.push(email || null); }
+    if (phone !== undefined) { fields.push('phone = ?');    params.push(phone || null); }
+    if (college !== undefined) { fields.push('college = ?'); params.push(college || null); }
+    if (course !== undefined) { fields.push('course = ?'); params.push(course || null); }
+    if (batch_year !== undefined) { fields.push('batch_year = ?'); params.push(batch_year || null); }
+    if (status && VALID_STATUSES.includes(status)) { fields.push('status = ?'); params.push(status); }
+    if (notes !== undefined) { fields.push('notes = ?'); params.push(notes || null); }
+    if (assigned_intern_id !== undefined) { fields.push('assigned_intern_id = ?'); params.push(assigned_intern_id || null); }
+    if (intern_code !== undefined) { fields.push('intern_code = ?'); params.push(intern_code || null); }
+    if (fields.length === 0) return res.status(400).json({ error: 'No fields to update' });
+    params.push(id);
+    await promisePool.query(`UPDATE students SET ${fields.join(', ')} WHERE id = ?`, params);
+    const [updated] = await promisePool.query('SELECT * FROM students WHERE id = ?', [id]);
+    if (updated.length === 0) return res.status(404).json({ error: 'Student not found' });
+    res.json({ message: 'Student updated', student: updated[0] });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Email already exists' });
+    console.error('CRM PUT student error:', err);
+    res.status(500).json({ error: 'Failed to update student' });
+  }
+});
+
+// PATCH /api/crm/students/:id/status — update status only (admin + intern)
+app.patch('/api/crm/students/:id/status', authenticateCRM, requireCRM, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!VALID_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status value' });
+    await promisePool.query('UPDATE students SET status = ? WHERE id = ?', [status, id]);
+    res.json({ message: 'Status updated', status });
+  } catch (err) {
+    console.error('CRM PATCH status error:', err);
+    res.status(500).json({ error: 'Failed to update status' });
+  }
+});
+
+// PATCH /api/crm/students/:id/intern-code — assign intern code
+app.patch('/api/crm/students/:id/intern-code', authenticateCRM, requireCRM, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { intern_code } = req.body;
+    // Interns can only apply their own code; admins can set any value
+    const codeToApply = req.user.role === 'intern' ? req.user.internCode : intern_code;
+    if (!codeToApply) return res.status(400).json({ error: 'No intern code available' });
+    // For interns: also set assigned_intern_id to themselves
+    if (req.user.role === 'intern') {
+      await promisePool.query(
+        'UPDATE students SET intern_code = ?, assigned_intern_id = ? WHERE id = ?',
+        [codeToApply, req.user.userId, id]
+      );
+    } else {
+      await promisePool.query(
+        'UPDATE students SET intern_code = ? WHERE id = ?',
+        [codeToApply, id]
+      );
+    }
+    res.json({ message: 'Intern code applied', intern_code: codeToApply });
+  } catch (err) {
+    console.error('CRM PATCH intern-code error:', err);
+    res.status(500).json({ error: 'Failed to apply intern code' });
+  }
+});
+
+// DELETE /api/crm/students/:id — admin only
+app.delete('/api/crm/students/:id', authenticateCRM, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [result] = await promisePool.query('DELETE FROM students WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Student not found' });
+    res.json({ message: 'Student deleted' });
+  } catch (err) {
+    console.error('CRM DELETE student error:', err);
+    res.status(500).json({ error: 'Failed to delete student' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// BULK UPLOAD — CSV
+// ─────────────────────────────────────────────────────────────────────────
+app.post('/api/crm/students/upload/csv', authenticateCRM, requireAdmin, uploadCRM.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    let records;
+    try {
+      records = csvParse(req.file.buffer.toString('utf8'), {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+      });
+    } catch (parseErr) {
+      return res.status(400).json({ error: 'Invalid CSV format', detail: parseErr.message });
+    }
+
+    // Validate and sanitize rows
+    const good = [];
+    const errors = [];
+    records.forEach((row, idx) => {
+      const s = sanitizeStudentRow(row);
+      if (!s.name) {
+        errors.push({ row: idx + 2, reason: 'Missing name' });
+      } else {
+        good.push(s);
+      }
+    });
+
+    // Return preview (not insert yet) — frontend will confirm
+    if (req.query.preview === 'true') {
+      return res.json({ preview: good, errors, total: records.length });
+    }
+
+    // Bulk insert
+    let inserted = 0;
+    const insertErrors = [];
+    for (const s of good) {
+      try {
+        await promisePool.query(
+          'INSERT INTO students (name, email, phone, college, course, batch_year, status, notes) VALUES (?,?,?,?,?,?,?,?)',
+          [s.name, s.email, s.phone, s.college, s.course, s.batch_year, s.status, s.notes]
+        );
+        inserted++;
+      } catch (e) {
+        insertErrors.push({ name: s.name, reason: e.code === 'ER_DUP_ENTRY' ? 'Email already exists' : e.message });
+      }
+    }
+
+    res.json({ message: 'CSV upload complete', inserted, skipped: insertErrors.length, errors: [...errors, ...insertErrors] });
+  } catch (err) {
+    console.error('CRM CSV upload error:', err);
+    res.status(500).json({ error: 'CSV upload failed' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// BULK UPLOAD — PDF
+// ─────────────────────────────────────────────────────────────────────────
+app.post('/api/crm/students/upload/pdf', authenticateCRM, requireAdmin, uploadCRM.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    let pdfData;
+    try {
+      pdfData = await pdfParse(req.file.buffer);
+    } catch (e) {
+      return res.status(400).json({ error: 'Failed to parse PDF', detail: e.message });
+    }
+
+    const lines = pdfData.text.split('\n').map(l => l.trim()).filter(Boolean);
+    const FIELDS = ['name', 'email', 'phone', 'college', 'course', 'batch_year', 'status', 'notes'];
+
+    // Attempt to parse as columnar CSV-like text (tab or multiple-space delimited)
+    // Try CSV parse on the extracted text first
+    const good = [];
+    const errors = [];
+
+    try {
+      // Some PDFs extract as CSV-like text
+      const records = csvParse(pdfData.text, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        relax_column_count: true,
+      });
+      records.forEach((row, idx) => {
+        const s = sanitizeStudentRow(row);
+        if (!s.name) {
+          errors.push({ row: idx + 2, reason: 'Missing name — uncertain parse' });
+        } else {
+          good.push({ ...s, _uncertain: false });
+        }
+      });
+    } catch {
+      // Fallback: treat each non-empty line as a potential name
+      lines.forEach((line, idx) => {
+        if (line.length > 2) {
+          good.push({ name: line, email: null, phone: null, college: null, course: null, batch_year: null, status: 'no_updates', notes: null, _uncertain: true });
+        } else {
+          errors.push({ row: idx + 1, reason: 'Line too short to parse' });
+        }
+      });
+    }
+
+    if (req.query.preview === 'true') {
+      return res.json({ preview: good, errors, total: lines.length });
+    }
+
+    let inserted = 0;
+    const insertErrors = [];
+    for (const s of good) {
+      try {
+        await promisePool.query(
+          'INSERT INTO students (name, email, phone, college, course, batch_year, status, notes) VALUES (?,?,?,?,?,?,?,?)',
+          [s.name, s.email, s.phone, s.college, s.course, s.batch_year, s.status, s.notes]
+        );
+        inserted++;
+      } catch (e) {
+        insertErrors.push({ name: s.name, reason: e.code === 'ER_DUP_ENTRY' ? 'Email already exists' : e.message });
+      }
+    }
+
+    res.json({ message: 'PDF upload complete', inserted, skipped: insertErrors.length, errors: [...errors, ...insertErrors] });
+  } catch (err) {
+    console.error('CRM PDF upload error:', err);
+    res.status(500).json({ error: 'PDF upload failed' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// EXPORT — PDF
+// ─────────────────────────────────────────────────────────────────────────
+app.get('/api/crm/students/export/pdf', authenticateCRM, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await promisePool.query(`
+      SELECT s.*, u.name AS assigned_intern_name
+      FROM students s
+      LEFT JOIN users u ON s.assigned_intern_id = u.id
+      ORDER BY s.status, s.name
+    `);
+
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="students-export-${Date.now()}.pdf"`);
+    doc.pipe(res);
+
+    // Header
+    doc.fontSize(18).font('Helvetica-Bold').text('NSV FinServ — Student CRM Export', { align: 'center' });
+    doc.fontSize(10).font('Helvetica').text(`Generated: ${new Date().toLocaleString('en-IN')}`, { align: 'center' });
+    doc.moveDown(1.5);
+
+    const STATUS_ORDER = ['contacted', 'interested', 'no_updates', 'conversion'];
+    const STATUS_LABELS = { contacted: 'Contacted', interested: 'Interested', no_updates: 'No Updates', conversion: 'Conversion' };
+
+    for (const status of STATUS_ORDER) {
+      const group = rows.filter(r => r.status === status);
+      if (group.length === 0) continue;
+
+      doc.fontSize(13).font('Helvetica-Bold').fillColor('#1E40AF').text(`● ${STATUS_LABELS[status]} (${group.length})`);
+      doc.fillColor('#000000').moveDown(0.4);
+
+      // Column headers
+      const cols = ['Name', 'Email', 'Phone', 'College', 'Course', 'Batch', 'Intern Code', 'Notes'];
+      const widths = [90, 100, 70, 90, 70, 40, 70, 90];
+      let x = doc.page.margins.left;
+      const headerY = doc.y;
+      doc.fontSize(8).font('Helvetica-Bold');
+      cols.forEach((col, i) => {
+        doc.text(col, x, headerY, { width: widths[i], ellipsis: true });
+        x += widths[i];
+      });
+      doc.moveDown(0.3);
+      doc.moveTo(doc.page.margins.left, doc.y).lineTo(doc.page.width - doc.page.margins.right, doc.y).stroke();
+      doc.moveDown(0.2);
+
+      // Rows
+      doc.fontSize(7).font('Helvetica');
+      group.forEach(s => {
+        if (doc.y > doc.page.height - 80) { doc.addPage(); }
+        let rx = doc.page.margins.left;
+        const ry = doc.y;
+        const vals = [
+          s.name || '', s.email || '', s.phone || '', s.college || '',
+          s.course || '', s.batch_year || '', s.intern_code || '', s.notes || '',
+        ];
+        vals.forEach((v, i) => {
+          doc.text(String(v).substring(0, 40), rx, ry, { width: widths[i], ellipsis: true });
+          rx += widths[i];
+        });
+        doc.moveDown(0.6);
+      });
+      doc.moveDown(1);
+    }
+
+    doc.end();
+  } catch (err) {
+    console.error('CRM export PDF error:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Export failed' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// INTERNS / USER MANAGEMENT  (admin only)
+// ─────────────────────────────────────────────────────────────────────────
+
+// GET /api/crm/interns
+app.get('/api/crm/interns', authenticateCRM, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await promisePool.query(
+      "SELECT id, name, email, intern_code, created_at FROM users WHERE role = 'intern' ORDER BY name"
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('CRM GET interns error:', err);
+    res.status(500).json({ error: 'Failed to fetch interns' });
+  }
+});
+
+// POST /api/crm/interns — create intern account
+app.post('/api/crm/interns', authenticateCRM, requireAdmin, async (req, res) => {
+  try {
+    const { name, email, password, intern_code } = req.body;
+    if (!name || !email || !password || !intern_code)
+      return res.status(400).json({ error: 'name, email, password, and intern_code are required' });
+
+    // Check uniqueness
+    const [dup] = await promisePool.query('SELECT id FROM users WHERE email = ? OR intern_code = ?', [email, intern_code]);
+    if (dup.length > 0)
+      return res.status(400).json({ error: 'Email or intern_code already in use' });
+
+    const hash = await bcrypt.hash(password, 10);
+    const [result] = await promisePool.query(
+      "INSERT INTO users (name, email, password_hash, role, intern_code) VALUES (?, ?, ?, 'intern', ?)",
+      [name.trim(), email.trim().toLowerCase(), hash, intern_code.trim()]
+    );
+    res.status(201).json({ message: 'Intern account created', id: result.insertId });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY')
+      return res.status(400).json({ error: 'Email or intern_code already in use' });
+    console.error('CRM POST intern error:', err);
+    res.status(500).json({ error: 'Failed to create intern' });
+  }
+});
+
+// PUT /api/crm/interns/:id — edit intern
+app.put('/api/crm/interns/:id', authenticateCRM, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, intern_code, newPassword } = req.body;
+    const fields = [], params = [];
+    if (name)        { fields.push('name = ?');        params.push(name.trim()); }
+    if (email)       { fields.push('email = ?');       params.push(email.trim().toLowerCase()); }
+    if (intern_code) { fields.push('intern_code = ?'); params.push(intern_code.trim()); }
+    if (newPassword && newPassword.length >= 6) {
+      const hash = await bcrypt.hash(newPassword, 10);
+      fields.push('password_hash = ?');
+      params.push(hash);
+    }
+    if (fields.length === 0) return res.status(400).json({ error: 'No fields to update' });
+    params.push(id);
+    await promisePool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ? AND role = 'intern'`, params);
+    res.json({ message: 'Intern updated' });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY')
+      return res.status(400).json({ error: 'Email or intern_code already in use' });
+    console.error('CRM PUT intern error:', err);
+    res.status(500).json({ error: 'Failed to update intern' });
+  }
+});
+
+// DELETE /api/crm/interns/:id
+app.delete('/api/crm/interns/:id', authenticateCRM, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Unassign this intern from students before deleting
+    await promisePool.query('UPDATE students SET assigned_intern_id = NULL WHERE assigned_intern_id = ?', [id]);
+    const [result] = await promisePool.query("DELETE FROM users WHERE id = ? AND role = 'intern'", [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Intern not found' });
+    res.json({ message: 'Intern deleted' });
+  } catch (err) {
+    console.error('CRM DELETE intern error:', err);
+    res.status(500).json({ error: 'Failed to delete intern' });
+  }
+});
+
+// ==========================================================================
+//  END CRM MODULE
+// ==========================================================================
+
 // ---------- Global error handler (JSON, not HTML) ----------
 app.use((err, req, res, next) => {
   console.error('UNHANDLED ERROR:', err && err.stack ? err.stack : err);
