@@ -2492,10 +2492,18 @@ app.get('/api/crm/students/export/pdf', authenticateCRM, requireAdmin, async (re
 // ─────────────────────────────────────────────────────────────────────────
 
 // GET /api/crm/interns
+// Only returns users who are GENUINE interns (role='intern' AND have an intern_code set).
+// Regular users were accidentally given role='intern' by the migration DEFAULT — they have
+// no intern_code, so this filter keeps them out of the intern management view.
 app.get('/api/crm/interns', authenticateCRM, requireAdmin, async (req, res) => {
   try {
     const [rows] = await promisePool.query(
-      "SELECT id, name, email, COALESCE(intern_code, '') AS intern_code, created_at FROM users WHERE role = 'intern' ORDER BY name"
+      `SELECT id, name, email, COALESCE(intern_code, '') AS intern_code, created_at
+       FROM users
+       WHERE role = 'intern'
+         AND intern_code IS NOT NULL
+         AND intern_code <> ''
+       ORDER BY name`
     );
     res.json(rows);
   } catch (err) {
