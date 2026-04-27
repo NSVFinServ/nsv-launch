@@ -7,6 +7,7 @@ import {
   Calendar,
   Calculator,
   FileText,
+  LayoutDashboard,
   LogOut,
   Menu,
   Newspaper,
@@ -1548,6 +1549,17 @@ export default function AdminDashboardClean() {
             })}
           </div>
         </nav>
+
+        {/* CRM Link — bottom of sidebar */}
+        <div className="px-2 pb-4 mt-2 border-t border-gray-100 pt-2">
+          <a
+            href="/crm"
+            className="w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors text-indigo-700 hover:bg-indigo-50"
+          >
+            <LayoutDashboard className="mr-3 h-5 w-5" />
+            CRM Dashboard
+          </a>
+        </div>
       </div>
 
       {/* Main */}

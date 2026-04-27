@@ -52,19 +52,13 @@ interface NotificationPayload {
 // ========================================
 
 const NOTIFICATION_CONFIG = {
-  // ✅ Base URL - Your n8n instance on Render
-  N8N_BASE_URL: 'https://n8n-nsvfinserv.onrender.com',
-  
-  // ✅ Full webhook paths (including /webhook/)
-  WEBHOOKS: {
-    LOGIN: '/webhook/website-login-alert',
-    EXPERT_ADVICE: '/webhook/expert-advice-form',
-    LOAN_APPLICATION: '/webhook/loan-application-form',
-  },
-  
+  // Backend proxy URL — calls /api/notify which forwards to n8n server-to-server
+  API_BASE_URL: (import.meta as any).env?.VITE_API_BASE_URL
+    || 'https://nsvfinserv-api-h7nt.onrender.com/api',
+
   ENABLED: true,
   WEBSITE: 'www.nsvfinserv.com',
-  TIMEOUT: 15000, // 15 seconds for Render cold starts
+  TIMEOUT: 15000,
 };
 
 // ========================================
@@ -93,55 +87,43 @@ async function getUserIP(): Promise<string> {
 }
 
 /**
- * Send notification to n8n webhook
+ * Send notification via backend proxy → n8n (avoids browser CORS)
  */
-async function sendToWebhook(endpoint: string, payload: NotificationPayload): Promise<boolean> {
+async function sendToWebhook(type: string, payload: NotificationPayload): Promise<boolean> {
   if (!NOTIFICATION_CONFIG.ENABLED) {
     console.log('📵 Notifications are disabled');
     return false;
   }
 
-  // ✅ Construct full URL: base + endpoint
-  const url = `${NOTIFICATION_CONFIG.N8N_BASE_URL}${endpoint}`;
-
   try {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('📤 SENDING NOTIFICATION');
-    console.log('🌐 URL:', url);
-    console.log('📦 Payload:', JSON.stringify(payload, null, 2));
+    console.log('📤 SENDING NOTIFICATION (via backend proxy)');
+    console.log('📦 Type:', type);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), NOTIFICATION_CONFIG.TIMEOUT);
 
-    const response = await fetch(url, {
+    const response = await fetch(`${NOTIFICATION_CONFIG.API_BASE_URL}/notify`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, payload }),
       signal: controller.signal,
     });
 
     clearTimeout(timeoutId);
 
-    if (response.ok) {
-      const responseData = await response.text();
-      console.log('✅ SUCCESS! Notification sent');
-      console.log('📥 Response:', responseData);
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      return true;
+    const data = await response.json().catch(() => ({}));
+    if (data.ok) {
+      console.log('✅ SUCCESS! Notification sent via proxy');
     } else {
-      const errorText = await response.text();
-      console.error('❌ FAILED! Status:', response.status);
-      console.error('📥 Error Response:', errorText);
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      return false;
+      console.warn('⚠️ Proxy responded but n8n may have failed:', data);
     }
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    return !!data.ok;
   } catch (error: any) {
     if (error.name === 'AbortError') {
-      console.error('⏱️ TIMEOUT! n8n might be sleeping (Render cold start)');
-      console.error('💡 Solution: Wait 30 seconds and try again');
+      console.error('⏱️ TIMEOUT! Backend proxy timed out');
     } else {
       console.error('❌ ERROR:', error.message);
     }
@@ -180,7 +162,7 @@ export async function sendLoginNotification(userData: LoginData): Promise<boolea
       notificationType: 'Login',
     };
 
-    return await sendToWebhook(NOTIFICATION_CONFIG.WEBHOOKS.LOGIN, payload);
+    return await sendToWebhook('login', payload);
   } catch (error: any) {
     console.error('❌ Login notification error:', error.message);
     return false;
@@ -219,7 +201,7 @@ export async function sendExpertAdviceNotification(formData: ExpertAdviceData): 
       notificationType: 'Expert Advice',
     };
 
-    return await sendToWebhook(NOTIFICATION_CONFIG.WEBHOOKS.EXPERT_ADVICE, payload);
+    return await sendToWebhook('expert-advice', payload);
   } catch (error: any) {
     console.error('❌ Expert Advice notification error:', error.message);
     return false;
@@ -264,7 +246,7 @@ export async function sendLoanApplicationNotification(formData: LoanApplicationD
       notificationType: 'Loan Application',
     };
 
-    return await sendToWebhook(NOTIFICATION_CONFIG.WEBHOOKS.LOAN_APPLICATION, payload);
+    return await sendToWebhook('loan-application', payload);
   } catch (error: any) {
     console.error('❌ Loan Application notification error:', error.message);
     return false;

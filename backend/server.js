@@ -83,6 +83,38 @@ app.get('/', (req, res) => res.type('text/plain').send('NSV Finserv API. See /ap
 app.get('/api', (req, res) => res.json({ ok: true, msg: 'API base. Try /api/health' }));
 app.get('/api/health', (req, res) => res.status(200).json({ ok: true, time: Date.now() }));
 
+// ---------- n8n Notification Proxy (avoids browser CORS) ----------
+// Frontend calls POST /api/notify with { type, payload }
+// Backend forwards server-to-server to n8n — no CORS issues
+const N8N_BASE = 'https://n8n-nsvfinserv.onrender.com';
+const N8N_WEBHOOKS = {
+  login: '/webhook/website-login-alert',
+  'expert-advice': '/webhook/expert-advice-form',
+  'loan-application': '/webhook/loan-application-form',
+};
+
+app.post('/api/notify', async (req, res) => {
+  const { type, payload } = req.body || {};
+  const path = N8N_WEBHOOKS[type];
+  if (!path) return res.status(400).json({ error: 'Unknown notification type' });
+
+  try {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 15000);
+    const r = await fetch(`${N8N_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    clearTimeout(tid);
+    res.json({ ok: r.ok, status: r.status });
+  } catch (err) {
+    console.error('n8n proxy error:', err.message);
+    res.json({ ok: false, error: err.message }); // non-blocking: always 200
+  }
+});
+
 // ---------- Multer (unchanged) ----------
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -226,10 +258,11 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Routes
-// ---------- Admin guard (uses your existing admin token shape) ----------
+// ---------- Admin guard (accepts legacy + CRM role-based tokens) ----------
 const isAdmin = (req, res, next) => {
-  // Your admin login issues token with { userId: 'admin' }
-  if (req?.user?.userId === 'admin') return next();
+  // Legacy: old admin panel issued tokens with { userId: 'admin' }
+  // CRM:    new login issues tokens with { userId: <number>, role: 'admin' }
+  if (req?.user?.userId === 'admin' || req?.user?.role === 'admin') return next();
   return res.status(403).json({ error: 'admin_only' });
 };
 // --- Blog thumbnail upload (memory storage so req.file.buffer exists) ---
