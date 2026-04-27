@@ -19,6 +19,7 @@ interface AuthContextValue {
   isAdmin: boolean;
   isIntern: boolean;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (token: string, user: AuthUser) => void;
   logout: () => void;
 }
@@ -32,6 +33,7 @@ const defaultValue: AuthContextValue = {
   isAdmin: false,
   isIntern: false,
   isAuthenticated: false,
+  isLoading: true,
   login: () => {},
   logout: () => {},
 };
@@ -42,6 +44,7 @@ const AuthContext = createContext<AuthContextValue>(defaultValue);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Restore from localStorage on mount
@@ -57,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('user');
       }
     }
+    setIsLoading(false);
   }, []);
 
   const login = useCallback((newToken: string, newUser: AuthUser) => {
@@ -87,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAdmin: role === 'admin',
         isIntern: role === 'intern',
         isAuthenticated: !!user,
+        isLoading,
         login,
         logout,
       }}

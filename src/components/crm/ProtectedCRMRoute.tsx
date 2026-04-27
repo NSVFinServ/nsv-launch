@@ -14,7 +14,10 @@ interface Props {
  * - Otherwise render children
  */
 export default function ProtectedCRMRoute({ children, requireAdmin = false }: Props) {
-  const { isAuthenticated, isAdmin, isIntern, role } = useAuth();
+  const { isAuthenticated, isAdmin, isIntern, role, isLoading } = useAuth();
+
+  // Wait for localStorage hydration — prevents false redirect on first render
+  if (isLoading) return null;
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
