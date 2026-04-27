@@ -2495,7 +2495,7 @@ app.get('/api/crm/students/export/pdf', authenticateCRM, requireAdmin, async (re
 app.get('/api/crm/interns', authenticateCRM, requireAdmin, async (req, res) => {
   try {
     const [rows] = await promisePool.query(
-      "SELECT id, name, email, intern_code, created_at FROM users WHERE role = 'intern' ORDER BY name"
+      "SELECT id, name, email, COALESCE(intern_code, '') AS intern_code, created_at FROM users WHERE role = 'intern' ORDER BY name"
     );
     res.json(rows);
   } catch (err) {

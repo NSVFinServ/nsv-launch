@@ -54,7 +54,7 @@ export default function InternManagement() {
     try {
       const r = await fetch(`${API_BASE_URL}/crm/interns`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await r.json();
-      setInterns(Array.isArray(data) ? data : []);
+      setInterns(Array.isArray(data) ? data.filter((i: any) => i && typeof i.id === 'number') : []);
     } catch { showToast('Failed to load interns', 'error'); }
     finally { setLoading(false); }
   }, [token]);
@@ -168,7 +168,9 @@ export default function InternManagement() {
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">Intern Code</p>
                     <p className="font-mono font-bold text-indigo-700 text-lg tracking-widest">
-                      {revealing.has(intern.id) ? intern.intern_code : '•'.repeat(intern.intern_code.length)}
+                      {revealing.has(intern.id)
+                        ? (intern.intern_code ?? '—')
+                        : '•'.repeat((intern.intern_code ?? '').length || 6)}
                     </p>
                   </div>
                   <div className="flex gap-2">
