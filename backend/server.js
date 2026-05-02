@@ -2128,18 +2128,196 @@ const requireCRM = (req, res, next) => {
 // ── Helpers ───────────────────────────────────────────────────────────────
 const VALID_STATUSES = ['contacted', 'interested', 'no_updates', 'conversion'];
 
-function sanitizeStudentRow(row) {
+// ── Column alias map ─────────────────────────────────────────────────────
+// Maps every known header variant (lowercase, trimmed) to a canonical field.
+const COLUMN_ALIASES = {
+  // name
+  'name': 'name', 'student name': 'name', 'studentname': 'name',
+  'full name': 'name', 'fullname': 'name', 'applicant name': 'name',
+  // email
+  'email': 'email', 'email id': 'email', 'emailid': 'email',
+  'email-id': 'email', 'email address': 'email', 'mail': 'email', 'e-mail': 'email',
+  // phone
+  'phone': 'phone', 'mobile': 'phone', 'mobile number': 'phone',
+  'mobilenumber': 'phone', 'phone number': 'phone', 'phone no': 'phone',
+  'phone no.': 'phone', 'ph no': 'phone', 'ph no.': 'phone',
+  'contact': 'phone', 'contact number': 'phone',
+  'mob no': 'phone', 'mob. no': 'phone', 'mob no.': 'phone',
+  // college
+  'college': 'college', 'university': 'college', 'institution': 'college',
+  'college name': 'college', 'university name': 'college', 'institute': 'college',
+  // course
+  'course': 'course', 'class': 'course', 'program': 'course',
+  'programme': 'course', 'branch': 'course', 'department': 'course',
+  'stream': 'course', 'degree': 'course',
+  // batch_year
+  'batch_year': 'batch_year', 'batch year': 'batch_year', 'batch/year': 'batch_year',
+  'batch': 'batch_year', 'year': 'batch_year', 'academic year': 'batch_year',
+  'passing year': 'batch_year', 'year of passing': 'batch_year',
+  // status
+  'status': 'status',
+  // notes
+  'notes': 'notes', 'note': 'notes', 'remarks': 'notes', 'comment': 'notes', 'comments': 'notes',
+  // columns to SKIP (serial numbers, row counters — always ignored)
+  's.no': '_skip', 's.no.': '_skip', 'sno': '_skip', 'sl no': '_skip',
+  'sl.no': '_skip', 'sl.no.': '_skip', 'sr no': '_skip', 'sr.no': '_skip',
+  'sr.no.': '_skip', 'serial no': '_skip', 'serial number': '_skip',
+  'serial': '_skip', '#': '_skip', 'no': '_skip', 'no.': '_skip',
+};
+
+/**
+ * Parse a single CSV line into an array of cell strings.
+ * Returns null on failure.
+ */
+function parseCsvLine(line) {
+  try {
+    const [cells] = csvParse(line, { relax_column_count: true, relax_quotes: true });
+    return cells.map(c => (c || '').toString().trim());
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Decide whether an array of cells represents a "banner" row —
+ * i.e. only the first cell is non-empty, and it contains a university/college
+ * name (not a known column header alias).
+ */
+function isBannerRow(cells) {
+  const nonEmpty = cells.filter(c => c && c.trim());
+  if (nonEmpty.length !== 1) return false;                   // must have exactly one non-empty cell
+  if (nonEmpty[0] !== cells[0]) return false;                // that cell must be the FIRST one
+  const alias = COLUMN_ALIASES[cells[0].toLowerCase()];
+  return !alias;                                             // must NOT be a known header alias
+}
+
+/**
+ * Decide whether an array of cells represents a header row —
+ * at least 2 cells must match a known, non-skip column alias.
+ */
+function isHeaderRow(cells) {
+  const matchCount = cells.filter(c => {
+    const alias = c && COLUMN_ALIASES[c.toLowerCase()];
+    return alias && alias !== '_skip'; // S.NO etc. don't count
+  }).length;
+  return matchCount >= 2;
+}
+
+/**
+ * Multi-section CSV parser.
+ *
+ * Handles files like:
+ *   NNRG                                    ← banner (college name)
+ *   S.NO | STUDENT NAME | CLASS | EMAIL ID  ← header row
+ *   1    | Alice        | MBA   | ...       ← data rows
+ *   (blank separator)
+ *   PRINCENSTON PHARMA                      ← next banner
+ *        | Name | Phone No. | Email-id      ← new header row (different columns!)
+ *   ...data rows for next college...
+ *
+ * Returns an array of { name, email, phone, college, course, batch_year, status, notes }
+ * and an array of { rowLabel, reason } error objects.
+ */
+function parseMultiSectionCsv(rawText) {
+  const lines = rawText.split(/\r?\n/);
+  const students = [];
+  const errors = [];
+
+  let currentCollege = null;  // college name from the most recent banner row
+  let currentHeaders = null;  // canonical field names, indexed by column position
+  let globalRowNum = 0;       // 1-based counter for error reporting
+
+  for (const line of lines) {
+    globalRowNum++;
+    const trimmed = line.trim();
+    if (!trimmed) {
+      // Blank line: section separator — keep current college, reset headers
+      // so the next non-blank line will be treated as a fresh header search.
+      // (We only reset if there's a new banner coming, so actually we just skip.)
+      continue;
+    }
+
+    const cells = parseCsvLine(line);
+    if (!cells) continue; // unparseable line
+
+    // ── Banner row? ────────────────────────────────────────────────────────
+    if (isBannerRow(cells)) {
+      currentCollege = cells[0].trim() || null;
+      currentHeaders = null; // force re-detection of headers for next section
+      continue;
+    }
+
+    // ── Header row? ────────────────────────────────────────────────────────
+    if (isHeaderRow(cells)) {
+      // Map column index → canonical field name.
+      // Unmapped columns AND explicitly-skipped columns (e.g. S.NO) → null.
+      currentHeaders = cells.map(c => {
+        const alias = COLUMN_ALIASES[c.toLowerCase()];
+        return (alias && alias !== '_skip') ? alias : null;
+      });
+      continue;
+    }
+
+    // ── Data row ───────────────────────────────────────────────────────────
+    if (!currentHeaders) {
+      // We haven't seen a header row yet; can't parse this as a data row.
+      errors.push({ rowLabel: `row ${globalRowNum}`, reason: 'Data row found before any header row' });
+      continue;
+    }
+
+    // Skip if all cells are blank
+    if (cells.every(c => !c)) continue;
+
+    // Build a { canonicalField: value } object from the indexed headers
+    const rowObj = {};
+    cells.forEach((cell, i) => {
+      const field = currentHeaders[i];
+      if (field && !(field in rowObj)) {
+        rowObj[field] = cell;
+      }
+    });
+
+    const s = sanitizeStudentRow(rowObj, currentCollege);
+
+    if (!s.name) {
+      // Skip pure serial-number rows silently (all-digit first cell, rest empty)
+      const firstCell = cells[0] || '';
+      if (/^\d+$/.test(firstCell) && cells.slice(1).every(c => !c)) continue;
+      errors.push({ rowLabel: `row ${globalRowNum}`, reason: 'Missing name' });
+    } else {
+      students.push(s);
+    }
+  }
+
+  return { students, errors };
+}
+
+/**
+ * Normalise a raw CSV row (object keyed by original header strings) into a
+ * canonical student object.  collegeFallback is used when no college column
+ * is present in the file (e.g., the university name was in a banner row).
+ * NOTE: sanitizeStudentRow is still used by the PDF upload path.
+ */
+function sanitizeStudentRow(row, collegeFallback = null) {
+  const canon = {};
+  for (const [rawKey, value] of Object.entries(row)) {
+    const alias = COLUMN_ALIASES[rawKey.toString().toLowerCase().trim()];
+    if (alias && !(alias in canon)) {
+      canon[alias] = value ? value.toString().trim() : '';
+    }
+  }
+  const college = canon.college || collegeFallback || null;
+  const rawStatus = (canon.status || '').toLowerCase();
+  const status = VALID_STATUSES.includes(rawStatus) ? rawStatus : 'no_updates';
   return {
-    name:       (row.name || row.Name || '').toString().trim(),
-    email:      (row.email || row.Email || '').toString().trim().toLowerCase() || null,
-    phone:      (row.phone || row.Phone || '').toString().trim() || null,
-    college:    (row.college || row.College || '').toString().trim() || null,
-    course:     (row.course || row.Course || '').toString().trim() || null,
-    batch_year: (row.batch_year || row['Batch Year'] || row['Batch/Year'] || '').toString().trim() || null,
-    status:     VALID_STATUSES.includes((row.status || row.Status || '').toLowerCase())
-                  ? (row.status || row.Status).toLowerCase()
-                  : 'no_updates',
-    notes:      (row.notes || row.Notes || '').toString().trim() || null,
+    name:       canon.name || '',
+    email:      (canon.email || '').toLowerCase() || null,
+    phone:      canon.phone || null,
+    college:    college ? college.trim() || null : null,
+    course:     canon.course || null,
+    batch_year: canon.batch_year || null,
+    status,
+    notes:      canon.notes || null,
   };
 }
 
@@ -2291,32 +2469,15 @@ app.post('/api/crm/students/upload/csv', authenticateCRM, requireAdmin, uploadCR
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-    let records;
-    try {
-      records = csvParse(req.file.buffer.toString('utf8'), {
-        columns: true,
-        skip_empty_lines: true,
-        trim: true,
-      });
-    } catch (parseErr) {
-      return res.status(400).json({ error: 'Invalid CSV format', detail: parseErr.message });
-    }
+    const rawText = req.file.buffer.toString('utf8');
 
-    // Validate and sanitize rows
-    const good = [];
-    const errors = [];
-    records.forEach((row, idx) => {
-      const s = sanitizeStudentRow(row);
-      if (!s.name) {
-        errors.push({ row: idx + 2, reason: 'Missing name' });
-      } else {
-        good.push(s);
-      }
-    });
+    // Multi-section parser: handles multiple colleges in one CSV,
+    // each with its own banner row and (optionally different) header row.
+    const { students: good, errors } = parseMultiSectionCsv(rawText);
 
     // Return preview (not insert yet) — frontend will confirm
     if (req.query.preview === 'true') {
-      return res.json({ preview: good, errors, total: records.length });
+      return res.json({ preview: good, errors, total: good.length + errors.length });
     }
 
     // Bulk insert
