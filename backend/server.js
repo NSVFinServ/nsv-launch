@@ -2158,6 +2158,12 @@ const COLUMN_ALIASES = {
   'status': 'status',
   // notes
   'notes': 'notes', 'note': 'notes', 'remarks': 'notes', 'comment': 'notes', 'comments': 'notes',
+  // split name columns — combined into 'name' at parse time
+  'first name': '_first_name', 'firstname': '_first_name', 'first': '_first_name',
+  'given name': '_first_name', 'givenname': '_first_name',
+  'middle name': '_middle_name', 'middlename': '_middle_name', 'middle': '_middle_name',
+  'last name': '_last_name', 'lastname': '_last_name', 'last': '_last_name',
+  'surname': '_last_name', 'family name': '_last_name', 'familyname': '_last_name',
   // columns to SKIP (serial numbers, row counters — always ignored)
   's.no': '_skip', 's.no.': '_skip', 'sno': '_skip', 'sl no': '_skip',
   'sl.no': '_skip', 'sl.no.': '_skip', 'sr no': '_skip', 'sr.no': '_skip',
@@ -2194,11 +2200,12 @@ function isBannerRow(cells) {
 /**
  * Decide whether an array of cells represents a header row —
  * at least 2 cells must match a known, non-skip column alias.
+ * Split-name sentinels (_first_name, _last_name) count as real columns.
  */
 function isHeaderRow(cells) {
   const matchCount = cells.filter(c => {
     const alias = c && COLUMN_ALIASES[c.toLowerCase()];
-    return alias && alias !== '_skip'; // S.NO etc. don't count
+    return alias && alias !== '_skip';
   }).length;
   return matchCount >= 2;
 }
@@ -2277,6 +2284,14 @@ function parseMultiSectionCsv(rawText) {
       }
     });
 
+    // Combine split name columns (First Name + Middle Name + Last Name) → name.
+    // Only applies when no explicit full-name column was present in this section.
+    if (!rowObj.name) {
+      const parts = [rowObj._first_name, rowObj._middle_name, rowObj._last_name]
+        .map(p => (p || '').trim()).filter(Boolean);
+      if (parts.length > 0) rowObj.name = parts.join(' ');
+    }
+
     const s = sanitizeStudentRow(rowObj, currentCollege);
 
     if (!s.name) {
@@ -2305,6 +2320,12 @@ function sanitizeStudentRow(row, collegeFallback = null) {
     if (alias && !(alias in canon)) {
       canon[alias] = value ? value.toString().trim() : '';
     }
+  }
+  // Combine split name columns for the PDF upload path (keys are raw header strings).
+  if (!canon.name) {
+    const parts = [canon._first_name, canon._middle_name, canon._last_name]
+      .map(p => (p || '').trim()).filter(Boolean);
+    if (parts.length > 0) canon.name = parts.join(' ');
   }
   const college = canon.college || collegeFallback || null;
   const rawStatus = (canon.status || '').toLowerCase();
