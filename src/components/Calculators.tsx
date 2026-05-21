@@ -1,6 +1,61 @@
 import React, { useState } from 'react';
 import { IndianRupee, Clock, Shield } from 'lucide-react';
 
+interface NumericInputProps {
+  value: number;
+  onChange: (val: number) => void;
+  onBlur: () => void;
+  className?: string;
+  isFormatted?: boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  placeholder?: string;
+}
+
+const NumericInput: React.FC<NumericInputProps> = ({ value, onChange, onBlur, className, isFormatted, min, max, step, placeholder }) => {
+  const [localValue, setLocalValue] = useState(isFormatted ? value.toLocaleString('en-IN') : value.toString());
+  const [isFocused, setIsFocused] = useState(false);
+
+  React.useEffect(() => {
+    if (!isFocused) {
+      setLocalValue(isFormatted ? value.toLocaleString('en-IN') : value.toString());
+    }
+  }, [value, isFocused, isFormatted]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setLocalValue(raw);
+    const num = parseFloat(raw.replace(/[, ]/g, ''));
+    if (!isNaN(num)) {
+      onChange(num);
+    } else if (raw === '') {
+      onChange(0);
+    }
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    onBlur();
+  };
+
+  return (
+    <input
+      type={isFormatted ? "text" : "number"}
+      inputMode="numeric"
+      className={className}
+      value={localValue}
+      onChange={handleChange}
+      onFocus={() => setIsFocused(true)}
+      onBlur={handleBlur}
+      min={min}
+      max={max}
+      step={step}
+      placeholder={placeholder}
+    />
+  );
+};
+
 const Calculators = () => {
   const [activeCalculator, setActiveCalculator] = useState<'emi' | 'moratorium' | 'term'>('emi');
 
@@ -150,20 +205,12 @@ const Calculators = () => {
                       />
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
+                        <NumericInput
+                          isFormatted
                           className="pl-7 pr-3 py-2 w-40 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          value={emiInputs.loanAmount.toLocaleString('en-IN')}
-                          onChange={(e) =>
-                            setEmiInputs((s: any) => {
-                              const v = parseNum(e.target.value, s.loanAmount);
-                              return {
-                                ...s,
-                                loanAmount: Math.round(clamp(v, 100000, 10000000) / 50000) * 50000,
-                              };
-                            })
-                          }
+                          value={emiInputs.loanAmount}
+                          onChange={(v) => setEmiInputs((s: any) => ({ ...s, loanAmount: v }))}
+                          onBlur={() => setEmiInputs((s: any) => ({ ...s, loanAmount: Math.round(clamp(s.loanAmount, 100000, 10000000) / 50000) * 50000 }))}
                         />
                       </div>
                     </div>
@@ -193,20 +240,14 @@ const Calculators = () => {
                         className="w-full"
                       />
                       <div className="relative">
-                        <input
-                          type="number"
+                        <NumericInput
                           step={0.1}
                           min={6}
                           max={18}
                           className="pr-10 pl-3 py-2 w-28 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           value={emiInputs.interestRate}
-                          onChange={(e) =>
-                            setEmiInputs((s: any) => ({
-                              ...s,
-                              interestRate:
-                                Math.round(clamp(parseNum(e.target.value, s.interestRate), 6, 18) * 10) / 10,
-                            }))
-                          }
+                          onChange={(v) => setEmiInputs((s: any) => ({ ...s, interestRate: v }))}
+                          onBlur={() => setEmiInputs((s: any) => ({ ...s, interestRate: Math.round(clamp(s.interestRate, 6, 18) * 10) / 10 }))}
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
                       </div>
@@ -237,19 +278,14 @@ const Calculators = () => {
                         className="w-full"
                       />
                       <div className="relative">
-                        <input
-                          type="number"
+                        <NumericInput
                           step={12}
                           min={12}
                           max={360}
                           className="pl-3 pr-14 py-2 w-40 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           value={emiInputs.tenure}
-                          onChange={(e) =>
-                            setEmiInputs((s: any) => ({
-                              ...s,
-                              tenure: Math.round(clamp(parseNum(e.target.value, s.tenure), 12, 360) / 12) * 12,
-                            }))
-                          }
+                          onChange={(v) => setEmiInputs((s: any) => ({ ...s, tenure: v }))}
+                          onBlur={() => setEmiInputs((s: any) => ({ ...s, tenure: Math.round(clamp(s.tenure, 12, 360) / 12) * 12 }))}
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">months</span>
                       </div>
@@ -311,20 +347,12 @@ const Calculators = () => {
                       />
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
+                        <NumericInput
+                          isFormatted
                           className="pl-7 pr-3 py-2 w-40 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          value={moratoriumInputs.loanAmount.toLocaleString('en-IN')}
-                          onChange={(e) =>
-                            setMoratoriumInputs((s: any) => {
-                              const v = parseNum(e.target.value, s.loanAmount);
-                              return {
-                                ...s,
-                                loanAmount: Math.round(clamp(v, 100000, 10000000) / 50000) * 50000,
-                              };
-                            })
-                          }
+                          value={moratoriumInputs.loanAmount}
+                          onChange={(v) => setMoratoriumInputs((s: any) => ({ ...s, loanAmount: v }))}
+                          onBlur={() => setMoratoriumInputs((s: any) => ({ ...s, loanAmount: Math.round(clamp(s.loanAmount, 100000, 10000000) / 50000) * 50000 }))}
                           placeholder="1,00,000"
                         />
                       </div>
@@ -351,19 +379,14 @@ const Calculators = () => {
                         className="w-full"
                       />
                       <div className="relative">
-                        <input
-                          type="number"
+                        <NumericInput
                           step={0.1}
                           min={6}
                           max={18}
                           className="pr-10 pl-3 py-2 w-28 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           value={moratoriumInputs.interestRate}
-                          onChange={(e) =>
-                            setMoratoriumInputs((s: any) => ({
-                              ...s,
-                              interestRate: Math.round(clamp(parseNum(e.target.value, s.interestRate), 6, 18) * 10) / 10,
-                            }))
-                          }
+                          onChange={(v) => setMoratoriumInputs((s: any) => ({ ...s, interestRate: v }))}
+                          onBlur={() => setMoratoriumInputs((s: any) => ({ ...s, interestRate: Math.round(clamp(s.interestRate, 6, 18) * 10) / 10 }))}
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
                       </div>
@@ -390,19 +413,14 @@ const Calculators = () => {
                         className="w-full"
                       />
                       <div className="relative">
-                        <input
-                          type="number"
+                        <NumericInput
                           step={12}
                           min={12}
                           max={360}
                           className="pl-3 pr-14 py-2 w-40 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           value={moratoriumInputs.tenure}
-                          onChange={(e) =>
-                            setMoratoriumInputs((s: any) => ({
-                              ...s,
-                              tenure: Math.round(clamp(parseNum(e.target.value, s.tenure), 12, 360) / 12) * 12,
-                            }))
-                          }
+                          onChange={(v) => setMoratoriumInputs((s: any) => ({ ...s, tenure: v }))}
+                          onBlur={() => setMoratoriumInputs((s: any) => ({ ...s, tenure: Math.round(clamp(s.tenure, 12, 360) / 12) * 12 }))}
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">months</span>
                       </div>
@@ -429,21 +447,14 @@ const Calculators = () => {
                         className="w-full"
                       />
                       <div className="relative">
-                        <input
-                          type="number"
+                        <NumericInput
                           step={3}
                           min={3}
                           max={24}
                           className="pl-3 pr-10 py-2 w-36 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           value={moratoriumInputs.moratoriumMonths}
-                          onChange={(e) =>
-                            setMoratoriumInputs((s: any) => ({
-                              ...s,
-                              moratoriumMonths: Math.round(
-                                clamp(parseNum(e.target.value, s.moratoriumMonths), 3, 24) / 3
-                              ) * 3,
-                            }))
-                          }
+                          onChange={(v) => setMoratoriumInputs((s: any) => ({ ...s, moratoriumMonths: v }))}
+                          onBlur={() => setMoratoriumInputs((s: any) => ({ ...s, moratoriumMonths: Math.round(clamp(s.moratoriumMonths, 3, 24) / 3) * 3 }))}
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">mo</span>
                       </div>
@@ -499,19 +510,14 @@ const Calculators = () => {
                         className="w-full"
                       />
                       <div className="relative">
-                        <input
-                          type="number"
+                        <NumericInput
                           min={18}
                           max={65}
                           step={1}
                           className="pl-3 pr-12 py-2 w-32 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           value={termInputs.age}
-                          onChange={(e) =>
-                            setTermInputs((s: any) => ({
-                              ...s,
-                              age: Math.round(clamp(parseNum(e.target.value, s.age), 18, 65)),
-                            }))
-                          }
+                          onChange={(v) => setTermInputs((s: any) => ({ ...s, age: v }))}
+                          onBlur={() => setTermInputs((s: any) => ({ ...s, age: Math.round(clamp(s.age, 18, 65)) }))}
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">yrs</span>
                       </div>
@@ -539,20 +545,12 @@ const Calculators = () => {
                       />
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
+                        <NumericInput
+                          isFormatted
                           className="pl-7 pr-3 py-2 w-44 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          value={termInputs.coverAmount.toLocaleString('en-IN')}
-                          onChange={(e) =>
-                            setTermInputs((s: any) => {
-                              const v = parseNum(e.target.value, s.coverAmount);
-                              return {
-                                ...s,
-                                coverAmount: Math.round(clamp(v, 1_000_000, 50_000_000) / 500_000) * 500_000,
-                              };
-                            })
-                          }
+                          value={termInputs.coverAmount}
+                          onChange={(v) => setTermInputs((s: any) => ({ ...s, coverAmount: v }))}
+                          onBlur={() => setTermInputs((s: any) => ({ ...s, coverAmount: Math.round(clamp(s.coverAmount, 1_000_000, 50_000_000) / 500_000) * 500_000 }))}
                           placeholder="10,00,000"
                         />
                       </div>
@@ -579,19 +577,14 @@ const Calculators = () => {
                         className="w-full"
                       />
                       <div className="relative">
-                        <input
-                          type="number"
+                        <NumericInput
                           step={5}
                           min={5}
                           max={30}
                           className="pl-3 pr-12 py-2 w-36 rounded-md border border-gray-300 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           value={termInputs.term}
-                          onChange={(e) =>
-                            setTermInputs((s: any) => ({
-                              ...s,
-                              term: Math.round(clamp(parseNum(e.target.value, s.term), 5, 30) / 5) * 5,
-                            }))
-                          }
+                          onChange={(v) => setTermInputs((s: any) => ({ ...s, term: v }))}
+                          onBlur={() => setTermInputs((s: any) => ({ ...s, term: Math.round(clamp(s.term, 5, 30) / 5) * 5 }))}
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">yrs</span>
                       </div>
