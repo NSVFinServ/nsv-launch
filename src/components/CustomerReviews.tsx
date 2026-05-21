@@ -220,10 +220,6 @@ const CustomerReviews = () => {
                     <span className="text-gray-600">Loan Type:</span>
                     <span className="font-medium" style={{ color: "rgb(46,46,46)" }}>{review.loan_type}</span>
                   </div>
-                  <div className="flex justify-between items-center text-sm mt-1">
-                    <span className="text-gray-600">Amount:</span>
-                    <span className="font-medium text-gray-900">{review.loan_amount}</span>
-                  </div>
                 </div>
 
                 {/* Customer Info */}
